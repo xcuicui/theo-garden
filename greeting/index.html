@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>给你的小问候</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 700px at 10% 10%, rgba(30,90,191,0.22), transparent 60%),
+        radial-gradient(1000px 650px at 85% 20%, rgba(90,167,255,0.20), transparent 55%),
+        radial-gradient(900px 700px at 50% 92%, rgba(231,240,255,0.80), transparent 62%),
+        linear-gradient(180deg, #f7faff, #ffffff);
+      /* Keep background visually fixed while swiping; avoid rubber-band scroll moving it */
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+    /* subtle floating sparkles */
+    body::before, body::after {
+      content: "";
+      position: fixed;
+      inset: -20vh -20vw;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(255,255,255,0.55) 0 2px, transparent 3px),
+        radial-gradient(circle at 70% 40%, rgba(255,255,255,0.40) 0 2px, transparent 3px),
+        radial-gradient(circle at 40% 75%, rgba(255,255,255,0.35) 0 2px, transparent 3px),
+        radial-gradient(circle at 85% 80%, rgba(255,255,255,0.30) 0 2px, transparent 3px);
+      opacity: 0.9;
+      filter: blur(0.2px);
+      animation: drift 18s linear infinite;
+    }
+    body::after {
+      opacity: 0.55;
+      animation-duration: 26s;
+      animation-direction: reverse;
+      mix-blend-mode: screen;
+    }
+    @keyframes drift {
+      from { transform: translate3d(0,0,0) rotate(0deg); }
+      to { transform: translate3d(2vw, -3vh, 0) rotate(6deg); }
+    }
+
+    .card {
+      width: min(760px, calc(100% - 32px));
+      padding: 28px 24px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.74);
+      border: 1px solid rgba(11,42,120,0.10);
+      box-shadow: 0 28px 90px rgba(11,42,120,0.12);
+      backdrop-filter: blur(14px);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      will-change: transform, opacity;
+      transition: transform 180ms ease, opacity 180ms ease;
+      transform: translateX(0);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -120px;
+      background: conic-gradient(from 210deg at 50% 50%, rgba(90,167,255,0.0), rgba(90,167,255,0.20), rgba(30,90,191,0.0));
+      opacity: 0.55;
+      filter: blur(26px);
+      animation: glow 10s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .card.dragging{ transition: none; }
+    @keyframes glow {
+      0%,100% { transform: rotate(0deg) scale(1.0); }
+      50% { transform: rotate(10deg) scale(1.06); }
+    }
+
+    h1 {
+      position: relative;
+      margin: 0 0 10px;
+      font-size: 28px;
+      letter-spacing: 0.4px;
+      color: rgba(0,0,0,0.84);
+    }
+    .msg {
+      position: relative;
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.9;
+      color: rgba(0,0,0,0.74);
+      white-space: pre-line;
+    }
+    .sign {
+      position: relative;
+      display: block;
+      margin-top: 10px;
+      font-size: 13px;
+      color: rgba(0,0,0,0.52);
+    }
+    .tiny {
+      position: relative;
+      margin-top: 14px;
+      font-size: 12px;
+      color: rgba(0,0,0,0.42);
+    }
+    .hub{
+      width: min(760px, calc(100% - 32px));
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    a.entry{
+      display:inline-block;
+      text-decoration:none;
+      color: rgba(11,42,120,0.80);
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(11,42,120,0.10);
+      padding: 11px 16px;
+      border-radius: 999px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    a.entry:hover{ transform: translateY(-1px); box-shadow: 0 14px 30px rgba(0,0,0,0.10); }
+    a.entry:active{ transform: translateY(0px) scale(0.99); }
+
+    /* little “pop” effect when changing text */
+    .pop { animation: pop 180ms ease-out; }
+    @keyframes pop { from { transform: scale(0.985); opacity: 0.7; } to { transform: scale(1); opacity: 1; } }
+
+    /* click burst */
+    .burst{ position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+    .bheart{
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: var(--x);
+      top: var(--y);
+      transform: translate(-50%, -50%) scale(var(--s, 1));
+      background: linear-gradient(135deg, rgba(11,42,120,1), rgba(90,167,255,1));
+      filter: drop-shadow(0 12px 18px rgba(11,42,120,0.22));
+      opacity: 0;
+      animation: bheart 900ms ease-out forwards;
+      -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 29'%3E%3Cpath d='M23.6 0c-2.8 0-5.2 1.6-6.6 3.9C15.6 1.6 13.2 0 10.4 0 4.7 0 0 4.7 0 10.4c0 9.4 16.1 18.6 16.1 18.6S32 19.8 32 10.4C32 4.7 27.3 0 23.6 0z'/%3E%3C/svg%3E");
+      -webkit-mask-repeat:no-repeat; -webkit-mask-size:contain; -webkit-mask-position:center;
+      mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 29'%3E%3Cpath d='M23.6 0c-2.8 0-5.2 1.6-6.6 3.9C15.6 1.6 13.2 0 10.4 0 4.7 0 0 4.7 0 10.4c0 9.4 16.1 18.6 16.1 18.6S32 19.8 32 10.4C32 4.7 27.3 0 23.6 0z'/%3E%3C/svg%3E");
+      mask-repeat:no-repeat; mask-size:contain; mask-position:center;
+    }
+    @keyframes bheart{
+      0%{ opacity: 0; transform: translate(-50%,-50%) scale(0.65) translate(0,0); }
+      12%{ opacity: 1; }
+      100%{ opacity: 0; transform: translate(-50%,-50%) scale(1.15) translate(var(--dx), var(--dy)); }
+    }
+
+    @media (max-width: 560px) {
+      .card{ width: calc(100% - 26px); padding: 22px 18px; border-radius: 22px; }
+      h1{ font-size: 26px; }
+      .msg{ font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" id="swipeCard" aria-label="swipe">
+    <h1 id="title">给你的小问候</h1>
+    <p class="msg" id="greet"></p>
+    <span class="sign" id="sign"></span>
+
+    <div class="tiny" id="time"></div>
+  </main>
+
+  <nav class="hub" aria-label="entries">
+    <a class="entry" href="../notes/">Theo的碎碎念收纳处</a>
+    <a class="entry" href="../simple/">Theo的小花园</a>
+  </nav>
+
+  <div class="burst" id="burst"></div>
+
+  <script src="./data.obf.js"></script>
+  <script>
+    const titleEl = document.getElementById('title');
+    const greetEl = document.getElementById('greet');
+    const signEl = document.getElementById('sign');
+    const timeEl = document.getElementById('time');
+
+    // Note: text content is intentionally obfuscated to avoid plaintext in GitHub.
+    // This is NOT real encryption; a determined person can recover it.
+    const chunks = window.__DATA_CHUNKS__ || [];
+    function decodeLines() {
+      const rev = chunks.join('');
+      const b64 = rev.split('').reverse().join('');
+      // atob gives a binary string (latin1). Convert to bytes -> UTF-8 string.
+      const bin = atob(b64);
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      const json = new TextDecoder('utf-8').decode(bytes);
+      return JSON.parse(json);
+    }
+    const lines = decodeLines();
+
+    function pop(el) {
+      if (!el) return;
+      el.classList.remove('pop');
+      void el.offsetWidth;
+      el.classList.add('pop');
+    }
+
+    let idx = Math.floor(Math.random() * lines.length);
+
+    function showAt(i) {
+      idx = (i + lines.length) % lines.length;
+      const pick = lines[idx];
+      const who = String(pick.t || '').split(/[，,]/)[0] || '你';
+      titleEl.textContent = `给${who}的小问候`;
+      greetEl.textContent = pick.t;
+      signEl.textContent = `— ${pick.s}`;
+      pop(titleEl); pop(greetEl); pop(signEl);
+      return `${pick.t}\n— ${pick.s}`;
+    }
+
+    let current = showAt(idx);
+
+    function next() { current = showAt(idx + 1); }
+    function prev() { current = showAt(idx - 1); }
+
+    const root = document.body;
+    const card = document.getElementById('swipeCard');
+
+    // Drag-to-swipe (card follows finger, release to switch)
+    let down = false;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let moved = 0;
+
+    const SWIPE_MIN = 55;
+
+    function setTranslate(x, opacity = 1) {
+      if (!card) return;
+      card.style.transform = `translateX(${x}px)`;
+      card.style.opacity = String(opacity);
+    }
+
+    function animateSwitch(sign /* -1 left, +1 right */) {
+      if (!card) return;
+      const w = card.getBoundingClientRect().width;
+      const off = Math.min(280, w * 0.42);
+      card.classList.remove('dragging');
+
+      // slide out in the SAME direction as the swipe
+      setTranslate(sign * off, 0);
+
+      setTimeout(() => {
+        // jump to opposite side without transition
+        card.classList.add('dragging');
+        setTranslate(-sign * off, 0);
+
+        // update content
+        sign === -1 ? next() : prev();
+
+        // slide in
+        requestAnimationFrame(() => {
+          card.classList.remove('dragging');
+          setTranslate(0, 1);
+        });
+      }, 170);
+    }
+
+    function resetPosition() {
+      if (!card) return;
+      card.classList.remove('dragging');
+      setTranslate(0, 1);
+    }
+
+    root.addEventListener('pointerdown', (e) => {
+      down = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      dx = 0;
+      moved = 0;
+      card?.classList.add('dragging');
+    });
+
+    root.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault?.();
+        const damp = Math.max(-340, Math.min(340, dx));
+        setTranslate(damp, 1);
+      }
+    }, { passive: false });
+
+    root.addEventListener('pointerup', (e) => {
+      if (!down) return;
+      down = false;
+
+      const dy = e.clientY - startY;
+      const absX = Math.abs(dx);
+
+      if (absX > Math.abs(dy) && absX > SWIPE_MIN) {
+        animateSwitch(dx < 0 ? -1 : +1);
+      } else {
+        resetPosition();
+      }
+    });
+
+    root.addEventListener('pointercancel', () => {
+      down = false;
+      resetPosition();
+    });
+
+    // click/tap burst anywhere (ignore if swipe gesture)
+    const burst = document.getElementById('burst');
+    function heartBurst(x, y) {
+      if (!burst) return;
+      const n = 11;
+      for (let i = 0; i < n; i++) {
+        const h = document.createElement('div');
+        h.className = 'bheart';
+        const ang = (Math.PI * 2 * i) / n + (Math.random() * 0.35);
+        const dist = 62 + Math.random() * 30;
+        const ddx = Math.cos(ang) * dist;
+        const ddy = Math.sin(ang) * dist;
+        h.style.setProperty('--x', x + 'px');
+        h.style.setProperty('--y', y + 'px');
+        h.style.setProperty('--dx', ddx + 'px');
+        h.style.setProperty('--dy', ddy + 'px');
+        h.style.setProperty('--s', (0.85 + Math.random() * 0.8).toFixed(2));
+        burst.appendChild(h);
+        setTimeout(() => h.remove(), 1000);
+      }
+    }
+
+    root.addEventListener('click', (e) => {
+      if (moved > 18) return;
+      heartBurst(e.clientX, e.clientY);
+    }, true);
+
+    root.addEventListener('touchend', (e) => {
+      if (moved > 18) return;
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      heartBurst(t.clientX, t.clientY);
+    }, { passive: true });
+
+    // keyboard
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    });
+
+    const now = new Date();
+    timeEl.textContent = `打开时间：${now.toLocaleString('zh-CN')}`;
+  </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Theo 的小站</title>
+  <style>
+    :root{ color-scheme: light; }
+    body{
+      margin:0; min-height:100svh; display:grid; place-items:center;
+      font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      background:
+        radial-gradient(1200px 700px at 10% 10%, rgba(30,90,191,0.20), transparent 60%),
+        radial-gradient(1000px 650px at 85% 20%, rgba(90,167,255,0.18), transparent 55%),
+        radial-gradient(900px 700px at 50% 92%, rgba(231,240,255,0.80), transparent 62%),
+        linear-gradient(180deg, #f7faff, #ffffff);
+      padding: 18px;
+    }
+    .card{
+      width:min(760px, 100%);
+      border-radius:24px;
+      background: rgba(255,255,255,0.76);
+      border: 1px solid rgba(11,42,120,0.10);
+      box-shadow: 0 28px 90px rgba(11,42,120,0.12);
+      backdrop-filter: blur(14px);
+      padding: 22px;
+    }
+    h1{ margin: 0; font-size: 22px; color: rgba(0,0,0,0.84); }
+    p{ margin: 10px 0 0; font-size: 13px; color: rgba(0,0,0,0.52); line-height: 1.7; }
+    .hub{ margin-top: 16px; display:flex; gap:10px; flex-wrap:wrap; }
+    a.entry{
+      display:inline-block;
+      text-decoration:none;
+      color: rgba(11,42,120,0.80);
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(11,42,120,0.10);
+      padding: 11px 16px;
+      border-radius: 999px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Theo 的小站</h1>
+    <p>入口整理在一起啦。选择你想去的页面：</p>
+    <nav class="hub" aria-label="entries">
+      <a class="entry" href="./greeting/">给你的小问候</a>
+      <a class="entry" href="./simple/">Theo 的小花园</a>
+      <a class="entry" href="./notes/">Theo 的碎碎念收纳处</a>
+    </nav>
+  </main>
+</body>
+</html>

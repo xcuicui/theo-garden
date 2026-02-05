@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Theo的碎碎念收纳处</title>
+  <style>
+    :root { color-scheme: light; }
+    *, *::before, *::after{ box-sizing: border-box; }
+    body{
+      margin:0;
+      min-height:100svh;
+      font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      background:
+        radial-gradient(1200px 700px at 10% 10%, rgba(30,90,191,0.20), transparent 60%),
+        radial-gradient(1000px 650px at 85% 20%, rgba(90,167,255,0.18), transparent 55%),
+        radial-gradient(900px 700px at 50% 92%, rgba(231,240,255,0.80), transparent 62%),
+        linear-gradient(180deg, #f7faff, #ffffff);
+      overflow-x:hidden;
+    }
+    .wrap{max-width: 860px; margin:0 auto; padding: 18px;}
+    .top{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+    h1{margin: 6px 0; font-size:22px; color: rgba(0,0,0,0.84);}
+    .sub{margin:0; font-size:13px; color: rgba(0,0,0,0.52); line-height:1.6}
+
+    .card{
+      margin-top:14px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.80), rgba(255,255,255,0.62));
+      border: 1px solid rgba(31,102,227,0.12);
+      box-shadow:
+        0 28px 80px rgba(11,42,120,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.55);
+      backdrop-filter: blur(16px);
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(500px 220px at 10% 5%, rgba(90,167,255,0.26), transparent 55%),
+        radial-gradient(420px 240px at 90% 0%, rgba(11,42,120,0.14), transparent 60%);
+      opacity: 0.55;
+      pointer-events:none;
+    }
+    .card > *{ position: relative; }
+    label{display:block; margin-top:12px; font-size:12px; color: rgba(0,0,0,0.55)}
+    textarea{
+      width:100%;
+      box-sizing: border-box;
+      min-height: 120px;
+      resize: vertical;
+      margin-top: 8px;
+      border-radius: 18px;
+      border: 1px solid rgba(31,102,227,0.16);
+      padding: 12px;
+      font-size: 14px;
+      outline: none;
+      background: rgba(255,255,255,0.92);
+      line-height: 1.75;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    }
+    textarea:focus{
+      border-color: rgba(31,102,227,0.35);
+      box-shadow: 0 0 0 4px rgba(90,167,255,0.18);
+    }
+    input[type=file]{margin-top:8px; max-width: 100%;}
+
+    .thumbs{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;}
+    .thumb{
+      width:84px; height:84px; border-radius:18px; border:1px solid rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.74);
+      box-shadow: 0 12px 28px rgba(11,42,120,0.10);
+      position:relative; overflow:hidden;
+    }
+    .thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+    .thumb button{
+      position:absolute; top:6px; right:6px;
+      width:26px; height:26px; border-radius:999px;
+      padding:0; border:0; cursor:pointer;
+      background: rgba(0,0,0,0.55); color:#fff;
+      box-shadow:none;
+    }
+    .thumb button:active{ transform: scale(0.96); }
+
+    .btns{margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;}
+    button, a.btn{
+      border:0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor:pointer;
+      background: rgba(255,255,255,0.82);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+      color: rgba(0,0,0,0.78);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      text-decoration:none;
+      display:inline-block;
+    }
+    button.primary{
+      background: linear-gradient(135deg, #0b2a78, #5aa7ff);
+      color:#fff;
+      font-weight:900;
+      letter-spacing: 0.2px;
+      box-shadow: 0 14px 34px rgba(31,102,227,0.22);
+    }
+    button.primary:disabled{opacity:0.6; cursor:not-allowed;}
+
+    .pill{
+      border: 1px solid rgba(31,102,227,0.14);
+      background: rgba(255,255,255,0.72);
+    }
+
+    .list{margin-top: 14px; display:grid; gap:10px;}
+    .item{
+      border-radius: 18px;
+      border: 1px solid rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.68);
+      padding: 12px;
+    }
+    .meta{font-size:12px; color: rgba(0,0,0,0.48); word-break: break-all;}
+    .text{margin-top:6px; white-space: pre-wrap; font-size:14px; color: rgba(0,0,0,0.72); line-height:1.7;}
+    .imgs{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;}
+    .imgs img{width:110px; height:110px; object-fit:cover; border-radius:14px; border:1px solid rgba(0,0,0,0.06)}
+
+    .note{margin-top:12px; font-size:12px; color: rgba(0,0,0,0.46); line-height:1.6}
+
+    /* calendar */
+    .calHead{margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:10px;}
+    .calTitle{font-weight:950; color: rgba(0,0,0,0.78);}
+    .calWeek{margin-top:10px; display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:8px;}
+    .calWeek div{font-size:12px; color: rgba(0,0,0,0.42); text-align:center; padding: 2px 0;}
+    .calGrid{margin-top:8px; display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:8px;}
+    .calCell{
+      border-radius: 16px;
+      border: 1px solid rgba(31,102,227,0.10);
+      background: rgba(255,255,255,0.62);
+      padding: 10px 8px;
+      min-height: 48px;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      position: relative;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+    .calCell:active{ transform: scale(0.98); }
+    .calCell.dim{opacity:0.42; cursor:default;}
+    .calCell.has{
+      background: linear-gradient(135deg, rgba(90,167,255,0.22), rgba(11,42,120,0.10));
+      border-color: rgba(31,102,227,0.22);
+      box-shadow: 0 14px 34px rgba(11,42,120,0.10);
+    }
+    .calCell.today{outline: 2px solid rgba(90,167,255,0.32);}
+    .calCell.sel{outline: 3px solid rgba(11,42,120,0.20);}
+    .calNum{font-weight:950; color: rgba(0,0,0,0.72); font-size:14px;}
+    .calDot{position:absolute; right:10px; bottom:10px; width:8px; height:8px; border-radius:999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(90,167,255,0.9));
+      box-shadow: 0 8px 18px rgba(31,102,227,0.22);
+    }
+
+    .toast{position:fixed; left:50%; bottom: 16px; transform: translateX(-50%);
+      background: rgba(0,0,0,0.80); color:#fff; padding: 10px 14px; border-radius: 999px; font-size: 13px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.20); display:none; max-width: calc(100% - 24px); text-align:center;}
+
+    @media (max-width: 560px){
+      .wrap{padding: 14px;}
+      .imgs img{width: 96px; height: 96px;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Theo的碎碎念收纳处</h1>
+        <p class="sub">把今天的小情绪、小快乐、小碎碎念…都悄悄收进来。</p>
+      </div>
+      <a class="btn" href="../greeting/">返回问候页</a>
+    </div>
+
+    <div class="card">
+      <label>想写点什么？</label>
+      <textarea id="text" placeholder="比如：今天的心情、想吃的东西、发生的小事…"></textarea>
+
+      <label>上传照片（可多张）</label>
+      <input id="photos" type="file" accept="image/*" multiple capture="environment" />
+      <div class="thumbs" id="thumbs"></div>
+
+      <div class="btns">
+        <button class="primary" id="saveGitHub">记录</button>
+      </div>
+
+      <div class="note">
+        小提示：照片可以多张，点缩略图能放大看。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="meta">日历</div>
+      <div class="calHead">
+        <button class="pill" id="prevM">←</button>
+        <div class="calTitle" id="calTitle"></div>
+        <div style="display:flex; gap:8px;">
+          <button class="pill" id="todayBtn">今天</button>
+          <button class="pill" id="nextM">→</button>
+        </div>
+      </div>
+      <div class="calWeek" id="calWeek"></div>
+      <div class="calGrid" id="calGrid"></div>
+      <div class="note">点日期查看当天碎碎念；有记录的日期会发光。</div>
+    </div>
+
+    <div class="card">
+      <div class="meta" id="dayTitle">已保存的记录（从仓库读取）</div>
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div id="imgModal" style="position:fixed; inset:0; display:none; place-items:center; padding:18px; background:rgba(10,16,30,0.72); backdrop-filter: blur(10px); z-index:200;">
+    <div style="position:relative; width:min(920px, 100%); max-height: 90svh;">
+      <button id="imgClose" style="position:absolute; top:-10px; right:-10px; width:42px; height:42px; border-radius:999px; border:1px solid rgba(255,255,255,0.20); background:rgba(255,255,255,0.14); color:#fff; cursor:pointer;">×</button>
+      <img id="imgBig" alt="photo" style="width:100%; max-height: 90svh; object-fit:contain; border-radius: 22px; border:1px solid rgba(255,255,255,0.16); box-shadow: 0 28px 90px rgba(0,0,0,0.35); background: rgba(255,255,255,0.06);" />
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg) => {
+      const t = $('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => t.style.display = 'none', 1600);
+    };
+
+    // image modal
+    const imgModal = $('imgModal');
+    const imgBig = $('imgBig');
+    const imgClose = $('imgClose');
+    function openImg(src){
+      if (!imgModal || !imgBig) return;
+      imgBig.src = src;
+      imgModal.style.display = 'grid';
+    }
+    function closeImg(){
+      if (!imgModal) return;
+      imgModal.style.display = 'none';
+      if (imgBig) imgBig.src = '';
+    }
+    imgClose && (imgClose.onclick = closeImg);
+    imgModal && imgModal.addEventListener('click', (e) => { if (e.target === imgModal) closeImg(); });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeImg(); });
+
+    // photo preview
+    let selectedFiles = [];
+    const thumbsEl = $('thumbs');
+    function renderThumbs(){
+      if (!thumbsEl) return;
+      thumbsEl.innerHTML = '';
+      selectedFiles.forEach((f, idx) => {
+        const div = document.createElement('div');
+        div.className = 'thumb';
+        const img = document.createElement('img');
+        img.alt = 'preview';
+        img.src = URL.createObjectURL(f);
+        img.onclick = () => openImg(img.src);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '×';
+        btn.onclick = () => {
+          selectedFiles.splice(idx, 1);
+          renderThumbs();
+        };
+        div.appendChild(img);
+        div.appendChild(btn);
+        thumbsEl.appendChild(div);
+      });
+    }
+    const photosInput = $('photos');
+    photosInput && photosInput.addEventListener('change', () => {
+      selectedFiles = Array.from(photosInput.files || []);
+      renderThumbs();
+    });
+
+    // --- Passcode gate + encrypted token ---
+    const KEY_STORAGE = 'theo_notes_write_key';
+
+    function getPass(){
+      try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; }
+    }
+    function setPass(v){
+      try { localStorage.setItem(KEY_STORAGE, v); } catch {}
+    }
+    function clearPass(){
+      try { localStorage.removeItem(KEY_STORAGE); } catch {}
+    }
+
+    async function b64ToBytes(b64){
+      const bin = atob(String(b64).replace(/\n/g,''));
+      const out = new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+      return out;
+    }
+
+    async function decryptToken(pass){
+      const enc = await fetch('./gh-token.enc.json', { cache: 'no-store' }).then(r=>r.json());
+      const salt = await b64ToBytes(enc.salt);
+      const iv = await b64ToBytes(enc.iv);
+      const ct = await b64ToBytes(enc.ct);
+      const tag = await b64ToBytes(enc.tag);
+      const data = new Uint8Array(ct.length + tag.length);
+      data.set(ct, 0);
+      data.set(tag, ct.length);
+
+      const baseKey = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(pass),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+      );
+
+      const aesKey = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: enc.iter || 150000, hash: 'SHA-256' },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+
+      const pt = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        aesKey,
+        data
+      );
+
+      return new TextDecoder('utf-8').decode(new Uint8Array(pt));
+    }
+
+    // gate overlay
+    const gate = document.createElement('div');
+    gate.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;padding:18px;background:rgba(245,249,255,0.66);backdrop-filter:blur(14px);z-index:99;';
+    gate.innerHTML = `
+      <div style="box-sizing:border-box;width:min(520px,calc(100% - 8px));max-width:100%;border-radius:24px;background:linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.72));border:1px solid rgba(31,102,227,0.14);box-shadow:0 28px 90px rgba(11,42,120,0.18);padding:18px 16px;overflow:hidden;">
+        <div style="font-size:18px;font-weight:950;color:rgba(0,0,0,0.84)">Theo 的碎碎念收纳处</div>
+        <div style="margin-top:8px;font-size:13px;color:rgba(0,0,0,0.55);line-height:1.65">请输入 4 位数口令，姐姐和我第一次见面的日子～</div>
+        <input id="keyInput" type="password" placeholder="口令" style="box-sizing:border-box;margin-top:12px;width:100%;max-width:100%;border-radius:16px;border:1px solid rgba(31,102,227,0.16);padding:11px 12px;font-size:14px;outline:none;background:rgba(255,255,255,0.92);" />
+        <div id="keyErr" style="margin-top:10px;font-size:13px;color:#b0003a;display:none">口令不对哦，再试一次～</div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+          <button id="keyOk" class="primary" style="border:0;border-radius:999px;padding:10px 14px;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#0b2a78,#5aa7ff);color:#fff;font-weight:900;">进入</button>
+        </div>
+      </div>
+    `;
+
+    let GH_TOKEN = '';
+    const GH_OWNER = 'xcuicui';
+    const GH_REPO = 'theo-notes';
+
+    async function ensurePassAndToken(){
+      const tryPass = async (p) => {
+        try {
+          const tok = await decryptToken(p);
+          // quick sanity check
+          if (!tok || tok.length < 10) throw new Error('bad');
+          GH_TOKEN = tok;
+          setPass(p);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      const existing = getPass();
+      if (existing) {
+        const ok = await tryPass(existing);
+        if (ok) {
+          // If pass is already stored and valid, skip gate and render immediately.
+          render();
+          return;
+        }
+        clearPass();
+      }
+
+      document.body.appendChild(gate);
+      const input = gate.querySelector('#keyInput');
+      const err = gate.querySelector('#keyErr');
+      const btn = gate.querySelector('#keyOk');
+
+      const submit = async () => {
+        err.style.display = 'none';
+        const v = String(input.value || '').trim();
+        if (!v) return;
+        const ok = await tryPass(v);
+        if (ok) {
+          gate.remove();
+          render();
+        } else {
+          err.style.display = 'block';
+        }
+      };
+
+      btn.onclick = submit;
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+      input.focus();
+    }
+
+    // --- GitHub API helpers ---
+    async function ghFetch(path, opts = {}){
+      const url = `https://api.github.com${path}`;
+      const res = await fetch(url, {
+        ...opts,
+        headers: {
+          'authorization': `Bearer ${GH_TOKEN}`,
+          'accept': 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+          ...(opts.headers || {}),
+        }
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`${res.status} ${t.slice(0, 200)}`);
+      }
+      return res.json();
+    }
+
+    async function ghPutFile(path, contentBase64, message){
+      const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}?ref=main`;
+      let sha;
+      try {
+        const j = await ghFetch(url);
+        sha = j && j.sha;
+      } catch {}
+
+      const putUrl = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}`;
+      return ghFetch(putUrl, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ message, content: contentBase64, branch: 'main', sha }),
+      });
+    }
+
+    async function ghListDir(repoPath){
+      const enc = repoPath.split('/').map(encodeURIComponent).join('/');
+      return ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=main`);
+    }
+
+    async function loadLegacyMdDay(dayStr){
+      // Legacy fallback: notes/YYYY-MM-DD/*.md (+ images referenced as images/..)
+      const dayDir = `notes/${dayStr}`;
+      let dayList;
+      try {
+        dayList = await ghListDir(dayDir);
+      } catch {
+        return { day: dayStr, items: [] };
+      }
+
+      const mdFiles = (Array.isArray(dayList) ? dayList : [])
+        .filter(x => x && x.type === 'file' && typeof x.name === 'string' && x.name.endsWith('.md'))
+        .map(x => x.name)
+        .sort((a,b) => b.localeCompare(a));
+
+      const items = [];
+      for (const name of mdFiles.slice(0, 60)) {
+        try {
+          const file = await ghGetFile(`${dayDir}/${name}`);
+          const md = file.encoding === 'base64' ? b64ToUtf8(file.content) : '';
+
+          // text: strip first heading line
+          const body = md.replace(/^#.*\n+/, '').trim();
+
+          // images: legacy relative images/... inside the same dayDir
+          const rels = Array.from(md.matchAll(/!\[]\((images\/[^)]+)\)/g)).map(m => m[1]);
+          const images = rels.map(r => `${dayDir}/${r}`);
+
+          // ts: try parse from heading
+          let ts = Date.now();
+          const m = md.match(/^#\s*(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2}):(\d{2})/m);
+          if (m) {
+            const dt = new Date(`${m[1]}T${m[2]}:${m[3]}:${m[4]}+08:00`);
+            if (!Number.isNaN(dt.getTime())) ts = dt.getTime();
+          }
+          items.push({ ts, text: body, images });
+        } catch {}
+      }
+
+      items.sort((a,b) => (b.ts||0) - (a.ts||0));
+      return { day: dayStr, items };
+    }
+
+    async function ghGetFile(repoPath){
+      const enc = repoPath.split('/').map(encodeURIComponent).join('/');
+      const j = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=main`);
+      if (!j || j.type !== 'file') throw new Error('not_file');
+      return { content: j.content, encoding: j.encoding, path: j.path, name: j.name };
+    }
+
+    function mimeFromPath(p){
+      const s = String(p || '').toLowerCase();
+      if (s.endsWith('.jpg') || s.endsWith('.jpeg')) return 'image/jpeg';
+      if (s.endsWith('.png')) return 'image/png';
+      if (s.endsWith('.gif')) return 'image/gif';
+      if (s.endsWith('.webp')) return 'image/webp';
+      if (s.endsWith('.heic')) return 'image/heic';
+      return 'application/octet-stream';
+    }
+
+    function b64ToUtf8(b64){
+      const bin = atob(String(b64).replace(/\n/g,''));
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    async function ghTryGetJson(path){
+      try {
+        const f = await ghGetFile(path);
+        const txt = f.encoding === 'base64' ? b64ToUtf8(f.content) : '';
+        return JSON.parse(txt);
+      } catch {
+        return null;
+      }
+    }
+
+    let notesIndex = { items: [] };
+    const dayCache = new Map(); // day -> daily json
+    let selectedDay = '';
+    let viewY = 0;
+    let viewM = 0;
+
+    // index cache (speed up calendar load)
+    const INDEX_CACHE_KEY = 'theo_notes_index_cache_v1';
+    const INDEX_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+    function loadIndexCache(){
+      try {
+        const raw = localStorage.getItem(INDEX_CACHE_KEY);
+        if (!raw) return null;
+        const j = JSON.parse(raw);
+        if (!j || typeof j !== 'object') return null;
+        if (!j.ts || !j.data) return null;
+        if ((Date.now() - j.ts) > INDEX_CACHE_TTL_MS) return null;
+        return j.data;
+      } catch {
+        return null;
+      }
+    }
+    function saveIndexCache(data){
+      try {
+        localStorage.setItem(INDEX_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+      } catch {}
+    }
+
+    function ymKey(y,m){ return `${y}-${String(m).padStart(2,'0')}`; }
+    function renderWeek(){
+      const w = $('calWeek');
+      if (!w) return;
+      w.innerHTML = '';
+      for (const n of ['一','二','三','四','五','六','日']){
+        const d = document.createElement('div');
+        d.textContent = n;
+        w.appendChild(d);
+      }
+    }
+
+    function renderCalendar(year, month){
+      const calTitle = $('calTitle');
+      const grid = $('calGrid');
+      if (!calTitle || !grid) return;
+
+      calTitle.textContent = `${year} / ${String(month).padStart(2,'0')}`;
+      grid.innerHTML = '';
+
+      const first = new Date(year, month-1, 1);
+      const startDow = (first.getDay() + 6) % 7; // Monday=0
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      // days set with entries
+      const hasDays = new Set();
+      for (const it of (notesIndex.items || [])) {
+        if (!it.day) continue;
+        if (String(it.day).startsWith(ymKey(year,month))) hasDays.add(it.day);
+      }
+
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+      // leading blanks
+      for (let i=0;i<startDow;i++) {
+        const d = document.createElement('div');
+        d.className = 'calCell dim';
+        grid.appendChild(d);
+      }
+
+      for (let day=1; day<=daysInMonth; day++) {
+        const dayStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const cell = document.createElement('div');
+        cell.className = 'calCell' + (hasDays.has(dayStr) ? ' has' : '');
+        if (dayStr === todayStr) cell.className += ' today';
+        if (dayStr === selectedDay) cell.className += ' sel';
+        cell.dataset.day = dayStr;
+        cell.innerHTML = `<div class="calNum">${day}</div>` + (hasDays.has(dayStr) ? `<div class="calDot"></div>` : '');
+        cell.onclick = () => loadDay(dayStr);
+        grid.appendChild(cell);
+      }
+    }
+
+    function markSelected(dayStr){
+      const grid = $('calGrid');
+      if (!grid) return;
+      grid.querySelectorAll('.calCell.sel').forEach(el => el.classList.remove('sel'));
+      const hit = grid.querySelector(`.calCell[data-day="${dayStr}"]`);
+      if (hit) hit.classList.add('sel');
+    }
+
+    async function renderDay(dayStr){
+      const list = $('list');
+      const title = $('dayTitle');
+      if (title) title.textContent = `${dayStr} 的碎碎念`;
+      if (!list) return;
+
+      const daily = dayCache.get(dayStr) || { items: [] };
+      const items = Array.isArray(daily.items) ? daily.items : [];
+
+      list.innerHTML = '';
+      if (!items.length) {
+        list.innerHTML = '<div class="meta">这一天还没有记录～</div>';
+        return;
+      }
+
+      for (const it of items) {
+        const div = document.createElement('div');
+        div.className = 'item';
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = new Date(it.ts || Date.now()).toLocaleString('zh-CN');
+
+        const text = document.createElement('div');
+        text.className = 'text';
+        text.textContent = it.text || '';
+
+        div.appendChild(meta);
+        if (text.textContent) div.appendChild(text);
+
+        const imgsArr = Array.isArray(it.images) ? it.images : [];
+        if (imgsArr.length) {
+          const btn = document.createElement('button');
+          btn.textContent = `查看照片（${imgsArr.length}）`;
+          btn.style.marginTop = '10px';
+
+          const imgs = document.createElement('div');
+          imgs.className = 'imgs';
+          imgs.style.display = 'none';
+
+          btn.onclick = async () => {
+            if (imgs.style.display === 'none') {
+              imgs.style.display = 'flex';
+              btn.textContent = '收起照片';
+              if (imgs.childElementCount === 0) {
+                for (const p of imgsArr.slice(0, 12)) {
+                  try {
+                    const imgFile = await ghGetFile(p);
+                    const b64 = String(imgFile.content || '').replace(/\n/g,'');
+                    const bin = atob(b64);
+                    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+                    const blob = new Blob([bytes], { type: mimeFromPath(p) });
+                    const url = URL.createObjectURL(blob);
+                    const img = document.createElement('img');
+                    img.alt = 'photo';
+                    img.src = url;
+                    img.onclick = () => openImg(url);
+                    imgs.appendChild(img);
+                  } catch {}
+                }
+              }
+            } else {
+              imgs.style.display = 'none';
+              btn.textContent = `查看照片（${imgsArr.length}）`;
+            }
+          };
+
+          div.appendChild(btn);
+          div.appendChild(imgs);
+        }
+
+        list.appendChild(div);
+      }
+    }
+
+    async function loadDay(dayStr){
+      selectedDay = dayStr;
+      // re-highlight selection (fast DOM toggle; fallback rerender if needed)
+      markSelected(dayStr);
+      if (viewY && viewM) renderCalendar(viewY, viewM);
+      markSelected(dayStr);
+
+      const list = $('list');
+      if (list) list.innerHTML = '<div class="meta">正在加载当天记录…</div>';
+
+      if (!dayCache.has(dayStr)) {
+        const dailyPath = `notes/${dayStr}/entries.json`;
+        let daily = await ghTryGetJson(dailyPath);
+        if (!daily) {
+          // fallback to legacy markdown day
+          daily = await loadLegacyMdDay(dayStr);
+        }
+        if (!daily || typeof daily !== 'object') daily = { day: dayStr, items: [] };
+        dayCache.set(dayStr, daily);
+      }
+      await renderDay(dayStr);
+    }
+
+    async function renderFromGitHub(){
+      renderWeek();
+
+      // default month = current
+      const now = new Date();
+      viewY = now.getFullYear();
+      viewM = now.getMonth() + 1;
+
+      const prevM = $('prevM');
+      const nextM = $('nextM');
+      const todayBtn = $('todayBtn');
+
+      const rerender = () => {
+        renderCalendar(viewY, viewM);
+      };
+
+      prevM && (prevM.onclick = () => {
+        viewM -= 1;
+        if (viewM <= 0) { viewM = 12; viewY -= 1; }
+        rerender();
+        markSelected(selectedDay);
+      });
+      nextM && (nextM.onclick = () => {
+        viewM += 1;
+        if (viewM >= 13) { viewM = 1; viewY += 1; }
+        rerender();
+        markSelected(selectedDay);
+      });
+      todayBtn && (todayBtn.onclick = async () => {
+        viewY = now.getFullYear();
+        viewM = now.getMonth() + 1;
+        selectedDay = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        rerender();
+        markSelected(selectedDay);
+        await loadDay(selectedDay);
+      });
+
+      // default open today
+      selectedDay = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+      // instant calendar from cache
+      const cached = loadIndexCache();
+      if (cached && typeof cached === 'object') {
+        notesIndex = cached;
+        rerender();
+        markSelected(selectedDay);
+      }
+
+      // start loading day immediately
+      await loadDay(selectedDay);
+
+      // refresh index in background (update cache + rerender)
+      (async () => {
+        const index = await ghTryGetJson('notes/index.json');
+        if (index && typeof index === 'object') {
+          notesIndex = index;
+          saveIndexCache(index);
+          rerender();
+          markSelected(selectedDay);
+        }
+      })();
+    }
+
+    async function render(){
+      try { await renderFromGitHub(); }
+      catch (e) {
+        console.warn(e);
+        $('list').innerHTML = '<div class="meta">读取失败（请确认口令正确）</div>';
+      }
+    }
+
+    async function readFileAsBase64(file){
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          const dataUrl = String(r.result || '');
+          const b64 = dataUrl.split(',')[1] || '';
+          resolve(b64);
+        };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+    }
+
+    async function blobToBase64(blob){
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          const dataUrl = String(r.result || '');
+          const b64 = dataUrl.split(',')[1] || '';
+          resolve(b64);
+        };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(blob);
+      });
+    }
+
+    async function compressToJpegBase64(file, opts = {}){
+      const { maxSide = 1600, quality = 0.82 } = opts;
+      // Use <img> + canvas; Safari can usually decode HEIC for display, and canvas can re-encode to JPEG.
+      const url = URL.createObjectURL(file);
+      try {
+        const img = await new Promise((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = reject;
+          im.src = url;
+        });
+
+        const w0 = img.naturalWidth || img.width;
+        const h0 = img.naturalHeight || img.height;
+        if (!w0 || !h0) throw new Error('bad_image');
+
+        const scale = Math.min(1, maxSide / Math.max(w0, h0));
+        const w = Math.max(1, Math.round(w0 * scale));
+        const h = Math.max(1, Math.round(h0 * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+        if (!blob) throw new Error('toBlob_failed');
+        const b64 = await blobToBase64(blob);
+        return { b64, ext: 'jpg', mime: 'image/jpeg' };
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function imageToUploadPayload(file){
+      // If it's HEIC/HEIF or very large, compress to JPEG for better compatibility.
+      const name = String(file.name || '');
+      const ext0 = (name.split('.').pop() || '').toLowerCase();
+      const isHeic = (file.type && /heic|heif/i.test(file.type)) || ext0 === 'heic' || ext0 === 'heif';
+      const isBig = (file.size || 0) > 2.5 * 1024 * 1024;
+
+      if (isHeic || isBig) {
+        try {
+          return await compressToJpegBase64(file, { maxSide: 1600, quality: 0.82 });
+        } catch (e) {
+          console.warn('compress fail, fallback original', e);
+        }
+      }
+
+      const b64 = await readFileAsBase64(file);
+      const ext = ext0 || (file.type==='image/jpeg'?'jpg':file.type==='image/png'?'png':'bin');
+      return { b64, ext, mime: file.type || mimeFromPath(ext) };
+    }
+
+    async function base64Utf8(str){
+      const bytes = new TextEncoder().encode(str);
+      let bin = '';
+      bytes.forEach(b => bin += String.fromCharCode(b));
+      return btoa(bin);
+    }
+
+    $('saveGitHub').onclick = async () => {
+      const btn = $('saveGitHub');
+      const text = $('text').value.trim();
+      const files = selectedFiles.length ? selectedFiles : Array.from($('photos').files || []);
+      if (!text && files.length === 0) {
+        toast('写点什么或传张照片再保存哦～');
+        return;
+      }
+
+      const oldLabel = btn ? btn.textContent : '';
+      btn && (btn.disabled = true);
+      btn && (btn.textContent = '保存中…');
+
+      try {
+        const ts = Date.now();
+        const d = new Date(ts);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        const HH = String(d.getHours()).padStart(2,'0');
+        const MM = String(d.getMinutes()).padStart(2,'0');
+        const SS = String(d.getSeconds()).padStart(2,'0');
+        const day = `${yyyy}-${mm}-${dd}`;
+        const dayDir = `notes/${day}`;
+        const stamp = `${HH}${MM}${SS}`;
+
+        // optimistic: update UI immediately (text + placeholders)
+        const optimisticEntry = { ts, text, images: [] };
+        if (!dayCache.has(day)) dayCache.set(day, { day, items: [] });
+        const daily0 = dayCache.get(day);
+        daily0.items = Array.isArray(daily0.items) ? daily0.items : [];
+        daily0.items.unshift(optimisticEntry);
+
+        notesIndex.items = Array.isArray(notesIndex.items) ? notesIndex.items : [];
+        notesIndex.items.unshift({ ts, day, text, images: [] });
+        notesIndex.items = notesIndex.items.slice(0, 200);
+
+        selectedDay = day;
+        // jump calendar view to current month
+        const now = new Date();
+        const viewY = now.getFullYear();
+        const viewM = now.getMonth() + 1;
+        renderCalendar(viewY, viewM);
+        await renderDay(day);
+
+        // upload images
+        const imgPaths = [];
+        for (let i=0;i<files.length;i++) {
+          const f = files[i];
+          const payload = await imageToUploadPayload(f);
+          const ext = payload.ext;
+          const path = `${dayDir}/images/${stamp}-${i+1}.${ext}`;
+          imgPaths.push(path);
+          btn && (btn.textContent = `上传照片 ${i+1}/${files.length}…`);
+          await ghPutFile(path, payload.b64, `Add photo ${day} ${stamp} #${i+1}`);
+        }
+
+        // Append to daily JSON
+        const dailyPath = `${dayDir}/entries.json`;
+        const daily = (await ghTryGetJson(dailyPath)) || { day, items: [] };
+        daily.items = Array.isArray(daily.items) ? daily.items : [];
+        daily.items.unshift({ ts, text, images: imgPaths });
+        await ghPutFile(dailyPath, await base64Utf8(JSON.stringify(daily, null, 2)), `Update daily entries ${day}`);
+
+        // Update index.json (fast list)
+        const idxPath = 'notes/index.json';
+        const idx = (await ghTryGetJson(idxPath)) || { items: [] };
+        idx.items = Array.isArray(idx.items) ? idx.items : [];
+        idx.items.unshift({ ts, day, text, images: imgPaths });
+        idx.items = idx.items.slice(0, 200);
+        await ghPutFile(idxPath, await base64Utf8(JSON.stringify(idx, null, 2)), `Update notes index ${day}`);
+        saveIndexCache(idx);
+
+        // update optimistic entry to real image paths
+        optimisticEntry.images = imgPaths;
+
+        $('text').value = '';
+        $('photos').value = '';
+        selectedFiles = [];
+        renderThumbs();
+
+        toast('已保存～');
+        await loadDay(day);
+      } catch (e) {
+        toast('保存失败：' + String(e).slice(0, 120));
+      } finally {
+        btn && (btn.disabled = false);
+        btn && (btn.textContent = oldLabel || '记录');
+      }
+    };
+
+    ensurePassAndToken();
+  </script>
+</body>
+</html>
