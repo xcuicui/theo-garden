@@ -247,9 +247,35 @@
   </style>
 </head>
 <body>
+  <script>
+    (function(){
+      const USERS = new Set(['Theo','Evie']);
+      const base = '/' + (location.pathname.split('/').filter(Boolean)[0] || '');
+      try {
+        const ok = localStorage.getItem('theo_auth_ok') === '1';
+        const user = localStorage.getItem('theo_auth_user') || '';
+        if (!ok || !USERS.has(user)) {
+          location.replace(base + '/?next=' + encodeURIComponent(location.pathname.slice(base.length) + location.search + location.hash));
+          return;
+        }
+        window.__AUTH__ = { user, base };
+      } catch {
+        location.replace(base + '/');
+      }
+    })();
+  </script>
+
   <div class="card" id="app" style="display:none">
     <div class="title">Theo 的小花园</div>
     <div class="sub">先来签到一下～然后再玩玩心心小游戏。</div>
+    <div class="sub" id="who" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+      <span>当前账号：<b id="whoName"></b></span>
+      <span style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="../greeting/" class="btn" style="text-decoration:none;">回到问候</a>
+        <a href="../notes/" class="btn" style="text-decoration:none;">去碎碎念</a>
+        <button class="btn" id="logout">退出登录</button>
+      </span>
+    </div>
 
     <div class="bubble">
       <div class="bubbleText" id="greet" style="display:none"></div>
@@ -388,6 +414,184 @@
 
     const DRAW_COST = 10;
 
+    const AUTH_USER = (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : 'Theo';
+    const ns = (k) => `tg:${AUTH_USER}:${k}`;
+
+    // ---- GitHub Vault Sync (private repo xcuicui/theo-notes) ----
+    // Uses the same 4-digit passcode stored at site login to decrypt notes/gh-token.enc.json.
+    let GH_TOKEN = '';
+    const GH_OWNER = 'xcuicui';
+    const GH_REPO = 'theo-notes';
+    const GH_BRANCH = 'main';
+
+    function getSitePass(){
+      try { return localStorage.getItem('theo_site_pass') || ''; } catch { return ''; }
+    }
+
+    async function b64ToBytes(b64){
+      const bin = atob(String(b64).replace(/\n/g,''));
+      const out = new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+      return out;
+    }
+
+    async function decryptGhToken(pass){
+      const enc = await fetch('../notes/gh-token.enc.json', { cache: 'no-store' }).then(r=>r.json());
+      const salt = await b64ToBytes(enc.salt);
+      const iv = await b64ToBytes(enc.iv);
+      const ct = await b64ToBytes(enc.ct);
+      const tag = await b64ToBytes(enc.tag);
+      const data = new Uint8Array(ct.length + tag.length);
+      data.set(ct, 0);
+      data.set(tag, ct.length);
+
+      const baseKey = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(pass),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+      );
+
+      const aesKey = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: enc.iter || 150000, hash: 'SHA-256' },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, data);
+      return new TextDecoder('utf-8').decode(new Uint8Array(pt));
+    }
+
+    async function ensureGhToken(){
+      if (GH_TOKEN) return GH_TOKEN;
+      const pass = getSitePass();
+      if (!pass) throw new Error('NO_PASS');
+      const tok = await decryptGhToken(pass);
+      if (!tok || tok.length < 10) throw new Error('BAD_TOKEN');
+      GH_TOKEN = tok;
+      return GH_TOKEN;
+    }
+
+    async function ghFetch(path, opts = {}){
+      await ensureGhToken();
+      const url = `https://api.github.com${path}`;
+      const res = await fetch(url, {
+        ...opts,
+        headers: {
+          'authorization': `Bearer ${GH_TOKEN}`,
+          'accept': 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+          ...(opts.headers || {}),
+        }
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`${res.status} ${t.slice(0, 200)}`);
+      }
+      return res.json();
+    }
+
+    async function ghGetFile(repoPath){
+      const enc = repoPath.split('/').map(encodeURIComponent).join('/');
+      const j = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=${encodeURIComponent(GH_BRANCH)}`);
+      if (!j || j.type !== 'file') throw new Error('not_file');
+      return { content: j.content, encoding: j.encoding, sha: j.sha };
+    }
+
+    function b64ToUtf8(b64){
+      const bin = atob(String(b64).replace(/\n/g,''));
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    async function base64Utf8(str){
+      const bytes = new TextEncoder().encode(str);
+      let bin = '';
+      bytes.forEach(b => bin += String.fromCharCode(b));
+      return btoa(bin);
+    }
+
+    async function ghTryGetJson(repoPath){
+      try {
+        const f = await ghGetFile(repoPath);
+        const txt = f.encoding === 'base64' ? b64ToUtf8(f.content) : '';
+        return JSON.parse(txt);
+      } catch {
+        return null;
+      }
+    }
+
+    async function ghPutFile(repoPath, contentBase64, message){
+      const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(repoPath).replaceAll('%2F','/')}`;
+      let sha;
+      try {
+        const cur = await ghFetch(`${url}?ref=${encodeURIComponent(GH_BRANCH)}`);
+        sha = cur && cur.sha;
+      } catch {}
+
+      return ghFetch(url, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ message, content: contentBase64, branch: GH_BRANCH, sha }),
+      });
+    }
+
+    const gardenStatePath = () => `garden/${AUTH_USER}/state.json`;
+
+    function mergeGardenState(local, remote){
+      const out = { ...(remote||{}), ...(local||{}) };
+      // merge rules
+      out.score = Math.max(Number(remote?.score||0), Number(local?.score||0));
+      const s = new Set([...(remote?.checkins||[]), ...(local?.checkins||[])]);
+      out.checkins = Array.from(s).sort();
+      // dailyBonusDay: keep the newer day string
+      const a = String(remote?.dailyBonusDay||'');
+      const b = String(local?.dailyBonusDay||'');
+      out.dailyBonusDay = (a > b) ? a : b;
+      // bag: max per item (safer against double-count)
+      const bag = {};
+      const rb = remote?.bag || {};
+      const lb = local?.bag || {};
+      for (const k of new Set([...Object.keys(rb), ...Object.keys(lb)])) {
+        bag[k] = Math.max(Number(rb[k]||0), Number(lb[k]||0));
+      }
+      out.bag = bag;
+      out.user = AUTH_USER;
+      out.version = 1;
+      out.updatedAt = Date.now();
+      return out;
+    }
+
+    async function loadRemoteGardenState(){
+      return await ghTryGetJson(gardenStatePath());
+    }
+
+    async function saveRemoteGardenState(state){
+      const payload = mergeGardenState(state, {});
+      const b64 = await base64Utf8(JSON.stringify(payload, null, 2));
+      await ghPutFile(gardenStatePath(), b64, `Update garden state (${AUTH_USER})`);
+    }
+
+    let syncTimer = null;
+    async function scheduleSync(getLocalStateFn){
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(async () => {
+        try {
+          const local = getLocalStateFn();
+          const remote = await loadRemoteGardenState();
+          const merged = mergeGardenState(local, remote);
+          const b64 = await base64Utf8(JSON.stringify(merged, null, 2));
+          await ghPutFile(gardenStatePath(), b64, `Update garden state (${AUTH_USER})`);
+        } catch (e) {
+          // keep silent; UI is still usable locally
+          console.warn('sync failed', e);
+        }
+      }, 900);
+    }
+
     const $ = (id) => document.getElementById(id);
     const toast = (msg) => {
       const t = $('toast');
@@ -455,17 +659,30 @@
 
     const load = () => {
       try {
-        state.score = Number(localStorage.getItem('theo_score') || '0') || 0;
-        state.bag = JSON.parse(localStorage.getItem('theo_bag') || '{}') || {};
-        state.dailyBonusTaken = (localStorage.getItem('theo_daily_bonus_day') === todayKey());
+        state.score = Number(localStorage.getItem(ns('theo_score')) || '0') || 0;
+        state.bag = JSON.parse(localStorage.getItem(ns('theo_bag')) || '{}') || {};
+        state.dailyBonusTaken = (localStorage.getItem(ns('theo_daily_bonus_day')) === todayKey());
       } catch {}
+    };
+
+    const getLocalGardenState = () => {
+      return {
+        score: state.score,
+        dailyBonusDay: (() => {
+          try { return localStorage.getItem(ns('theo_daily_bonus_day')) || ''; } catch { return ''; }
+        })(),
+        checkins: Array.from(checkins || []),
+        bag: state.bag || {},
+      };
     };
 
     const save = () => {
       try {
-        localStorage.setItem('theo_score', String(state.score));
-        localStorage.setItem('theo_bag', JSON.stringify(state.bag));
+        localStorage.setItem(ns('theo_score'), String(state.score));
+        localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag));
       } catch {}
+      // background sync
+      scheduleSync(getLocalGardenState);
     };
 
     const render = () => {
@@ -528,8 +745,8 @@
     const hgPointsEl = () => $('hgPoints');
     const hgMetaEl = () => $('hgMeta');
 
-    const hgDayKey = () => `${todayKey()}_heartgame_points`;
-    const hgPlaysKey = () => 'theo_heartgame_plays'; // array of timestamps
+    const hgDayKey = () => ns(`${todayKey()}_heartgame_points`);
+    const hgPlaysKey = () => ns('theo_heartgame_plays'); // array of timestamps
 
     const getHgPoints = () => {
       try { return Number(localStorage.getItem(hgDayKey()) || '0') || 0; } catch { return 0; }
@@ -577,7 +794,7 @@
     };
 
     // Charge-game hourly play limit (game 2)
-    const chargePlaysKey = () => 'theo_charge_plays';
+    const chargePlaysKey = () => ns('theo_charge_plays');
     const getRecentChargePlays = () => {
       const now = Date.now();
       try {
@@ -753,7 +970,7 @@
     };
 
     // check-in calendar (local only)
-    const CHECKIN_STORE = 'theo_garden_checkins_v1';
+    const CHECKIN_STORE = ns('theo_garden_checkins_v1');
     let cViewY = 0;
     let cViewM = 0;
     let checkins = new Set();
@@ -774,6 +991,7 @@
     };
     const saveCheckins = () => {
       try { localStorage.setItem(CHECKIN_STORE, JSON.stringify(Array.from(checkins).sort())); } catch {}
+      scheduleSync(getLocalGardenState);
     };
     const renderCWeek = () => {
       const w = $('cWeek');
@@ -816,7 +1034,7 @@
       if (state.dailyBonusTaken) return toast('今天已经签过到啦～');
       state.score += 7;
       state.dailyBonusTaken = true;
-      try { localStorage.setItem('theo_daily_bonus_day', todayKey()); } catch {}
+      try { localStorage.setItem(ns('theo_daily_bonus_day'), todayKey()); } catch {}
 
       // mark calendar
       checkins.add(ymd(new Date()));
@@ -837,12 +1055,11 @@
       hgRun = null;
       activeHeartXs.splice(0, activeHeartXs.length);
       try {
-        localStorage.removeItem('theo_gate_ok');
-        localStorage.removeItem('theo_score');
-        localStorage.removeItem('theo_bag');
-        localStorage.removeItem('theo_daily_bonus_day');
-        localStorage.removeItem('theo_heartgame_plays');
-        localStorage.removeItem(`${todayKey()}_heartgame_points`);
+        localStorage.removeItem(ns('theo_score'));
+        localStorage.removeItem(ns('theo_bag'));
+        localStorage.removeItem(ns('theo_daily_bonus_day'));
+        localStorage.removeItem(ns('theo_heartgame_plays'));
+        localStorage.removeItem(hgDayKey());
       } catch {}
       render();
       renderHg();
@@ -855,7 +1072,59 @@
     const showApp = () => {
       $('gate').style.display = 'none';
       $('app').style.display = 'block';
+
+      // header
+      const whoName = $('whoName');
+      whoName && (whoName.textContent = AUTH_USER);
+      const logout = $('logout');
+      logout && (logout.onclick = (e) => {
+        e.preventDefault();
+        try {
+          localStorage.removeItem('theo_auth_ok');
+          localStorage.removeItem('theo_auth_user');
+        } catch {}
+        const base = (window.__AUTH__ && window.__AUTH__.base) ? String(window.__AUTH__.base) : '';
+        location.replace(base + '/');
+      });
+
       load();
+
+      // Try load remote state and merge once.
+      (async () => {
+        try {
+          const local = {
+            score: state.score,
+            dailyBonusDay: localStorage.getItem(ns('theo_daily_bonus_day')) || '',
+            checkins: Array.from(checkins || []),
+            bag: state.bag || {},
+          };
+          const remote = await loadRemoteGardenState();
+          if (remote) {
+            const merged = mergeGardenState(local, remote);
+            // apply merged into local state
+            state.score = Number(merged.score || 0) || 0;
+            state.bag = merged.bag || {};
+            try { localStorage.setItem(ns('theo_score'), String(state.score)); } catch {}
+            try { localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag)); } catch {}
+            if (merged.dailyBonusDay) {
+              try { localStorage.setItem(ns('theo_daily_bonus_day'), merged.dailyBonusDay); } catch {}
+            }
+            checkins = new Set(Array.isArray(merged.checkins) ? merged.checkins : []);
+            saveCheckins();
+            render();
+            renderCheckinCalendar();
+          }
+          // also push current (merged) to remote in background
+          await scheduleSync(() => ({
+            score: state.score,
+            dailyBonusDay: localStorage.getItem(ns('theo_daily_bonus_day')) || '',
+            checkins: Array.from(checkins || []),
+            bag: state.bag || {},
+          }));
+        } catch (e) {
+          console.warn('remote merge skipped', e);
+        }
+      })();
 
       // init check-in calendar
       loadCheckins();
@@ -1025,7 +1294,7 @@
         try {
           const [uh, ph] = await Promise.all([sha256Hex(u), sha256Hex(p)]);
           if (uh === EXPECT_USER_SHA256 && ph === EXPECT_PASS_SHA256) {
-            try { localStorage.setItem('theo_gate_ok', '1'); } catch {}
+            // legacy gate path (kept for compatibility)
             showApp();
             return;
           }
@@ -1038,8 +1307,8 @@
 
     // init
     try {
-      const ok = localStorage.getItem('theo_gate_ok') === '1';
-      ok ? showApp() : showGate();
+      // Global auth is handled at site entry.
+      showApp();
     } catch {
       showGate();
     }

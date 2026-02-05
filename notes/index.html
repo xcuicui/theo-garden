@@ -175,6 +175,24 @@
   </style>
 </head>
 <body>
+  <script>
+    (function(){
+      const USERS = new Set(['Theo','Evie']);
+      const base = '/' + (location.pathname.split('/').filter(Boolean)[0] || '');
+      try {
+        const ok = localStorage.getItem('theo_auth_ok') === '1';
+        const user = localStorage.getItem('theo_auth_user') || '';
+        if (!ok || !USERS.has(user)) {
+          location.replace(base + '/?next=' + encodeURIComponent(location.pathname.slice(base.length) + location.search + location.hash));
+          return;
+        }
+        window.__AUTH__ = { user };
+      } catch {
+        location.replace(base + '/');
+      }
+    })();
+  </script>
+
   <div class="wrap">
     <div class="top">
       <div>
@@ -291,16 +309,26 @@
     });
 
     // --- Passcode gate + encrypted token ---
-    const KEY_STORAGE = 'theo_notes_write_key';
+    const KEY_STORAGE = 'theo_site_pass';
+    const KEY_STORAGE_LEGACY = 'theo_notes_write_key';
 
     function getPass(){
-      try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; }
+      try {
+        return localStorage.getItem(KEY_STORAGE) || localStorage.getItem(KEY_STORAGE_LEGACY) || '';
+      } catch { return ''; }
     }
     function setPass(v){
-      try { localStorage.setItem(KEY_STORAGE, v); } catch {}
+      try {
+        localStorage.setItem(KEY_STORAGE, v);
+        // keep legacy key in sync for older pages (safe to remove later)
+        localStorage.setItem(KEY_STORAGE_LEGACY, v);
+      } catch {}
     }
     function clearPass(){
-      try { localStorage.removeItem(KEY_STORAGE); } catch {}
+      try {
+        localStorage.removeItem(KEY_STORAGE);
+        localStorage.removeItem(KEY_STORAGE_LEGACY);
+      } catch {}
     }
 
     async function b64ToBytes(b64){
@@ -640,7 +668,8 @@
 
         const meta = document.createElement('div');
         meta.className = 'meta';
-        meta.textContent = new Date(it.ts || Date.now()).toLocaleString('zh-CN');
+        const who = it.author ? `${it.author} · ` : '';
+        meta.textContent = who + new Date(it.ts || Date.now()).toLocaleString('zh-CN');
 
         const text = document.createElement('div');
         text.className = 'text';
@@ -903,7 +932,8 @@
         const stamp = `${HH}${MM}${SS}`;
 
         // optimistic: update UI immediately (text + placeholders)
-        const optimisticEntry = { ts, text, images: [] };
+        const author = (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : '';
+        const optimisticEntry = { ts, text, images: [], author };
         if (!dayCache.has(day)) dayCache.set(day, { day, items: [] });
         const daily0 = dayCache.get(day);
         daily0.items = Array.isArray(daily0.items) ? daily0.items : [];
@@ -937,14 +967,14 @@
         const dailyPath = `${dayDir}/entries.json`;
         const daily = (await ghTryGetJson(dailyPath)) || { day, items: [] };
         daily.items = Array.isArray(daily.items) ? daily.items : [];
-        daily.items.unshift({ ts, text, images: imgPaths });
+        daily.items.unshift({ ts, text, images: imgPaths, author });
         await ghPutFile(dailyPath, await base64Utf8(JSON.stringify(daily, null, 2)), `Update daily entries ${day}`);
 
         // Update index.json (fast list)
         const idxPath = 'notes/index.json';
         const idx = (await ghTryGetJson(idxPath)) || { items: [] };
         idx.items = Array.isArray(idx.items) ? idx.items : [];
-        idx.items.unshift({ ts, day, text, images: imgPaths });
+        idx.items.unshift({ ts, day, text, images: imgPaths, author });
         idx.items = idx.items.slice(0, 200);
         await ghPutFile(idxPath, await base64Utf8(JSON.stringify(idx, null, 2)), `Update notes index ${day}`);
         saveIndexCache(idx);

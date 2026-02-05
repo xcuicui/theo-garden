@@ -3,17 +3,135 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>跳转中…</title>
-  <meta http-equiv="refresh" content="0; url=./greeting/" />
-  <link rel="canonical" href="./greeting/" />
-  <script>
-    // JS redirect as a fallback.
-    location.replace('./greeting/');
-  </script>
+  <title>Theo 的小站 · 登录</title>
+  <style>
+    :root { color-scheme: light; }
+    body{
+      margin:0;
+      min-height:100svh;
+      display:grid;
+      place-items:center;
+      font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      background:
+        radial-gradient(1200px 700px at 10% 10%, rgba(30,90,191,0.20), transparent 60%),
+        radial-gradient(1000px 650px at 85% 20%, rgba(90,167,255,0.18), transparent 55%),
+        radial-gradient(900px 700px at 50% 92%, rgba(231,240,255,0.80), transparent 62%),
+        linear-gradient(180deg, #f7faff, #ffffff);
+      padding: 18px;
+    }
+    .card{
+      width:min(520px, 100%);
+      border-radius:24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.72));
+      border:1px solid rgba(11,42,120,0.10);
+      box-shadow:0 28px 90px rgba(11,42,120,0.12);
+      backdrop-filter: blur(14px);
+      padding: 18px 16px;
+    }
+    .title{ font-size:18px; font-weight:950; color:rgba(0,0,0,0.84); }
+    .sub{ margin-top:8px; font-size:13px; color:rgba(0,0,0,0.55); line-height:1.65; }
+    label{ display:block; margin-top:14px; font-size:12px; color:rgba(0,0,0,0.55); }
+    select, input{
+      margin-top:6px;
+      width:100%;
+      border-radius:16px;
+      border:1px solid rgba(31,102,227,0.16);
+      padding:11px 12px;
+      font-size:14px;
+      outline:none;
+      background:rgba(255,255,255,0.92);
+    }
+    .btns{ margin-top:14px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+    button{
+      border:0;
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:14px;
+      cursor:pointer;
+      background: linear-gradient(135deg,#0b2a78,#5aa7ff);
+      color:#fff;
+      font-weight:900;
+    }
+    .err{ margin-top:10px; font-size:13px; color:#b0003a; display:none; }
+  </style>
 </head>
 <body>
-  <noscript>
-    <a href="./greeting/">点击进入：给你的小问候</a>
-  </noscript>
+  <main class="card">
+    <div class="title">Theo 的小站 · 登录</div>
+    <div class="sub">选择账号并输入 4 位数口令～</div>
+
+    <label>账号</label>
+    <select id="user">
+      <option value="Theo">Theo</option>
+      <option value="Evie">Evie</option>
+    </select>
+
+    <label>口令</label>
+    <input id="pass" type="password" inputmode="numeric" placeholder="4 位数" />
+
+    <div class="err" id="err">用户名或口令不对哦～</div>
+
+    <div class="btns">
+      <button id="go">进入</button>
+    </div>
+  </main>
+
+  <script>
+    const USERS = new Set(['Theo','Evie']);
+    const EXPECT_PASS = '0124';
+
+    function basePath(){
+      // '/theo-garden' (repo pages base)
+      const parts = location.pathname.split('/').filter(Boolean);
+      return parts.length ? `/${parts[0]}` : '';
+    }
+
+    function nextUrl(){
+      const p = new URLSearchParams(location.search);
+      const next = p.get('next');
+      const base = basePath();
+      if (next && next.startsWith('/')) return base + next;
+      return base + '/greeting/';
+    }
+
+    function alreadyOk(){
+      try {
+        const ok = localStorage.getItem('theo_auth_ok') === '1';
+        const user = localStorage.getItem('theo_auth_user') || '';
+        if (ok && USERS.has(user)) return true;
+      } catch {}
+      return false;
+    }
+
+    if (alreadyOk()) {
+      location.replace(nextUrl());
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const btn = $('go');
+    const err = $('err');
+    const userEl = $('user');
+    const passEl = $('pass');
+
+    const submit = () => {
+      err.style.display = 'none';
+      const user = String(userEl.value || '').trim();
+      const pass = String(passEl.value || '').trim();
+      if (!USERS.has(user) || pass !== EXPECT_PASS) {
+        err.style.display = 'block';
+        return;
+      }
+      try {
+        localStorage.setItem('theo_auth_ok', '1');
+        localStorage.setItem('theo_auth_user', user);
+        // also store pass so /notes and /simple can decrypt token without re-asking.
+        localStorage.setItem('theo_site_pass', pass);
+      } catch {}
+      location.replace(nextUrl());
+    };
+
+    btn.onclick = submit;
+    passEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  </script>
 </body>
 </html>

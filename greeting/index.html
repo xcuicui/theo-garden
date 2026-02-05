@@ -168,6 +168,24 @@
   </style>
 </head>
 <body>
+  <script>
+    (function(){
+      const USERS = new Set(['Theo','Evie']);
+      const base = '/' + (location.pathname.split('/').filter(Boolean)[0] || '');
+      try {
+        const ok = localStorage.getItem('theo_auth_ok') === '1';
+        const user = localStorage.getItem('theo_auth_user') || '';
+        if (!ok || !USERS.has(user)) {
+          location.replace(base + '/?next=' + encodeURIComponent(location.pathname.slice(base.length) + location.search + location.hash));
+          return;
+        }
+        window.__AUTH__ = { user };
+      } catch {
+        location.replace(base + '/');
+      }
+    })();
+  </script>
+
   <main class="card" id="swipeCard" aria-label="swipe">
     <h1 id="title">给你的小问候</h1>
     <p class="msg" id="greet"></p>
@@ -179,6 +197,7 @@
   <nav class="hub" aria-label="entries">
     <a class="entry" href="../notes/">Theo的碎碎念收纳处</a>
     <a class="entry" href="../simple/">Theo的小花园</a>
+    <a class="entry" href="#" id="logout">退出登录</a>
   </nav>
 
   <div class="burst" id="burst"></div>
@@ -361,6 +380,20 @@
 
     const now = new Date();
     timeEl.textContent = `打开时间：${now.toLocaleString('zh-CN')}`;
+
+    // logout
+    const logout = document.getElementById('logout');
+    logout && (logout.onclick = (e) => {
+      e.preventDefault();
+      try {
+        localStorage.removeItem('theo_auth_ok');
+        localStorage.removeItem('theo_auth_user');
+        // keep theo_site_pass to avoid retyping if you log back in; comment out if you prefer.
+        // localStorage.removeItem('theo_site_pass');
+      } catch {}
+      const base = '/' + (location.pathname.split('/').filter(Boolean)[0] || '');
+      location.replace(base + '/');
+    });
   </script>
 </body>
 </html>
