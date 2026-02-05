@@ -561,12 +561,13 @@
       const b = String(local?.dailyBonusDay||'');
       out.dailyBonusDay = (a > b) ? a : b;
 
-      // bag: max per item (safer against double-count)
+      // bag MUST allow decrease (consume/use), so follow the newer-side (primary)
       const bag = {};
-      const rb = remote?.bag || {};
-      const lb = local?.bag || {};
-      for (const k of new Set([...Object.keys(rb), ...Object.keys(lb)])) {
-        bag[k] = Math.max(Number(rb[k]||0), Number(lb[k]||0));
+      const pb = primary?.bag || {};
+      const sb = secondary?.bag || {};
+      for (const k of new Set([...Object.keys(pb), ...Object.keys(sb)])) {
+        if (pb && Object.prototype.hasOwnProperty.call(pb, k)) bag[k] = Number(pb[k]||0) || 0;
+        else bag[k] = Number(sb[k]||0) || 0;
       }
       out.bag = bag;
 
@@ -1105,42 +1106,49 @@
 
       load();
 
-      // Try load remote state and merge once.
+      async function pullAndMergeRemote(){
+        const local = getLocalGardenState();
+        const remote = await loadRemoteGardenState();
+        if (remote) {
+          const merged = mergeGardenState(local, remote);
+          // apply merged into local state
+          state.score = Number(merged.score || 0) || 0;
+          state.bag = merged.bag || {};
+          try { localStorage.setItem(ns('updatedAt'), String(merged.updatedAt || Date.now())); } catch {}
+          try { localStorage.setItem(ns('theo_score'), String(state.score)); } catch {}
+          try { localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag)); } catch {}
+          if (merged.dailyBonusDay) {
+            try { localStorage.setItem(ns('theo_daily_bonus_day'), merged.dailyBonusDay); } catch {}
+          }
+          checkins = new Set(Array.isArray(merged.checkins) ? merged.checkins : []);
+          saveCheckins();
+          render();
+          renderCheckinCalendar();
+        }
+      }
+
+      // Try load remote state and merge once, and keep it fresh.
       (async () => {
         try {
-          const local = {
-            score: state.score,
-            dailyBonusDay: localStorage.getItem(ns('theo_daily_bonus_day')) || '',
-            checkins: Array.from(checkins || []),
-            bag: state.bag || {},
-          };
-          const remote = await loadRemoteGardenState();
-          if (remote) {
-            const merged = mergeGardenState(local, remote);
-            // apply merged into local state
-            state.score = Number(merged.score || 0) || 0;
-            state.bag = merged.bag || {};
-            try { localStorage.setItem(ns('theo_score'), String(state.score)); } catch {}
-            try { localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag)); } catch {}
-            if (merged.dailyBonusDay) {
-              try { localStorage.setItem(ns('theo_daily_bonus_day'), merged.dailyBonusDay); } catch {}
-            }
-            checkins = new Set(Array.isArray(merged.checkins) ? merged.checkins : []);
-            saveCheckins();
-            render();
-            renderCheckinCalendar();
-          }
+          await pullAndMergeRemote();
           // also push current (merged) to remote in background
-          await scheduleSync(() => ({
-            score: state.score,
-            dailyBonusDay: localStorage.getItem(ns('theo_daily_bonus_day')) || '',
-            checkins: Array.from(checkins || []),
-            bag: state.bag || {},
-          }));
+          scheduleSync(getLocalGardenState);
         } catch (e) {
           console.warn('remote merge skipped', e);
         }
       })();
+
+      // Periodic pull so other devices' changes show up without a reload.
+      setInterval(() => {
+        if (document.visibilityState !== 'visible') return;
+        pullAndMergeRemote().catch(() => {});
+      }, 20000);
+
+      // Pull when coming back to the tab.
+      window.addEventListener('focus', () => pullAndMergeRemote().catch(() => {}));
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') pullAndMergeRemote().catch(() => {});
+      });
 
       // init check-in calendar
       loadCheckins();
