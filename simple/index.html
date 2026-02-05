@@ -542,15 +542,25 @@
     const gardenStatePath = () => `garden/${AUTH_USER}/state.json`;
 
     function mergeGardenState(local, remote){
-      const out = { ...(remote||{}), ...(local||{}) };
-      // merge rules
-      out.score = Math.max(Number(remote?.score||0), Number(local?.score||0));
+      const lts = Number(local?.updatedAt || 0) || 0;
+      const rts = Number(remote?.updatedAt || 0) || 0;
+      const primary = (lts >= rts) ? (local || {}) : (remote || {});
+      const secondary = (primary === local) ? (remote || {}) : (local || {});
+
+      const out = { ...secondary, ...primary };
+
+      // score MUST allow decrease (spend), so follow the newer-side (primary)
+      out.score = Number(primary?.score || 0) || 0;
+
+      // checkins is a set union
       const s = new Set([...(remote?.checkins||[]), ...(local?.checkins||[])]);
       out.checkins = Array.from(s).sort();
+
       // dailyBonusDay: keep the newer day string
       const a = String(remote?.dailyBonusDay||'');
       const b = String(local?.dailyBonusDay||'');
       out.dailyBonusDay = (a > b) ? a : b;
+
       // bag: max per item (safer against double-count)
       const bag = {};
       const rb = remote?.bag || {};
@@ -559,9 +569,10 @@
         bag[k] = Math.max(Number(rb[k]||0), Number(lb[k]||0));
       }
       out.bag = bag;
+
       out.user = AUTH_USER;
       out.version = 1;
-      out.updatedAt = Date.now();
+      out.updatedAt = Math.max(Date.now(), lts, rts);
       return out;
     }
 
@@ -673,11 +684,16 @@
         })(),
         checkins: Array.from(checkins || []),
         bag: state.bag || {},
+        updatedAt: (() => {
+          try { return Number(localStorage.getItem(ns('updatedAt')) || '0') || 0; } catch { return 0; }
+        })(),
       };
     };
 
     const save = () => {
+      const now = Date.now();
       try {
+        localStorage.setItem(ns('updatedAt'), String(now));
         localStorage.setItem(ns('theo_score'), String(state.score));
         localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag));
       } catch {}
