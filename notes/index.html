@@ -527,6 +527,18 @@
       const enc = repoPath.split('/').map(encodeURIComponent).join('/');
       const j = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=main`);
       if (!j || j.type !== 'file') throw new Error('not_file');
+
+      // GitHub Contents API may omit `content` for large binaries; fallback to blobs API.
+      if (!j.content && j.sha) {
+        const b = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/git/blobs/${j.sha}`);
+        return {
+          content: b.content,
+          encoding: b.encoding,
+          path: j.path,
+          name: j.name,
+        };
+      }
+
       return { content: j.content, encoding: j.encoding, path: j.path, name: j.name };
     }
 
