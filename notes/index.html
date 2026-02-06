@@ -528,18 +528,28 @@
       const j = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=main`);
       if (!j || j.type !== 'file') throw new Error('not_file');
 
-      // GitHub Contents API may omit `content` for large binaries; fallback to blobs API.
-      if (!j.content && j.sha) {
+      // GitHub Contents API may omit `content` for large binaries.
+      // It usually provides download_url which we can fetch as raw bytes.
+      const download_url = j.download_url || '';
+
+      if (j.content) {
+        return { content: j.content, encoding: j.encoding, path: j.path, name: j.name, download_url };
+      }
+
+      // Fallback 1: blobs API (may truncate for large blobs)
+      if (j.sha) {
         const b = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/git/blobs/${j.sha}`);
         return {
           content: b.content,
           encoding: b.encoding,
           path: j.path,
           name: j.name,
+          download_url,
+          truncated: !!b.truncated,
         };
       }
 
-      return { content: j.content, encoding: j.encoding, path: j.path, name: j.name };
+      return { content: '', encoding: 'base64', path: j.path, name: j.name, download_url };
     }
 
     function mimeFromPath(p){
@@ -708,17 +718,35 @@
                 for (const p of imgsArr.slice(0, 12)) {
                   try {
                     const imgFile = await ghGetFile(p);
-                    const b64 = String(imgFile.content || '').replace(/\n/g,'');
-                    const bin = atob(b64);
-                    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-                    const blob = new Blob([bytes], { type: mimeFromPath(p) });
+
+                    let blob;
+                    // Prefer download_url for large files.
+                    if (imgFile.download_url) {
+                      const res = await fetch(imgFile.download_url, {
+                        headers: {
+                          'authorization': `Bearer ${GH_TOKEN}`,
+                          'accept': 'application/octet-stream',
+                        }
+                      });
+                      if (!res.ok) throw new Error('download_failed');
+                      blob = await res.blob();
+                    } else {
+                      const b64 = String(imgFile.content || '').replace(/\n/g,'');
+                      if (!b64) throw new Error('no_content');
+                      const bin = atob(b64);
+                      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+                      blob = new Blob([bytes], { type: mimeFromPath(p) });
+                    }
+
                     const url = URL.createObjectURL(blob);
                     const img = document.createElement('img');
                     img.alt = 'photo';
                     img.src = url;
                     img.onclick = () => openImg(url);
                     imgs.appendChild(img);
-                  } catch {}
+                  } catch (e) {
+                    console.warn('image load failed', p, e);
+                  }
                 }
               }
             } else {
