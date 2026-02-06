@@ -731,19 +731,29 @@
             if (imgs.style.display === 'none') {
               imgs.style.display = 'flex';
               btn.textContent = '收起照片';
+
               if (imgs.childElementCount === 0) {
+                // show loading hint
+                const hint = document.createElement('div');
+                hint.className = 'meta';
+                hint.textContent = '照片加载中…';
+                imgs.appendChild(hint);
+
+                let okCount = 0;
+                let failCount = 0;
+
                 for (const p of imgsArr.slice(0, 12)) {
                   try {
-                    const imgFile = await ghGetFile(p);
-
+                    // Strategy (similar to original repo, but safer):
+                    // 1) Try fetch raw via GitHub API (best for large private binaries)
+                    // 2) Fallback to base64 content from Contents API (small files)
                     let blob;
                     try {
-                      // Best compatibility: fetch raw bytes via GitHub API (CORS+auth ok).
                       blob = await ghFetchRaw(p);
-                    } catch {
-                      // Fallback to base64 content (works for small files)
+                    } catch (e1) {
+                      const imgFile = await ghGetFile(p);
                       const b64 = String(imgFile.content || '').replace(/\n/g,'');
-                      if (!b64) throw new Error('no_content');
+                      if (!b64) throw e1;
                       const bin = atob(b64);
                       const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
                       blob = new Blob([bytes], { type: mimeFromPath(p) });
@@ -752,12 +762,29 @@
                     const url = URL.createObjectURL(blob);
                     const img = document.createElement('img');
                     img.alt = 'photo';
+                    img.loading = 'lazy';
                     img.src = url;
                     img.onclick = () => openImg(url);
                     imgs.appendChild(img);
+                    okCount += 1;
                   } catch (e) {
+                    failCount += 1;
                     console.warn('image load failed', p, e);
                   }
+                }
+
+                hint.remove();
+
+                if (okCount === 0) {
+                  const err = document.createElement('div');
+                  err.className = 'meta';
+                  err.textContent = '照片加载失败（可能是浏览器限制或权限问题）。你可以尝试：复制链接到 Safari/Chrome 打开，再试一次。';
+                  imgs.appendChild(err);
+                } else if (failCount > 0) {
+                  const warn = document.createElement('div');
+                  warn.className = 'meta';
+                  warn.textContent = `有 ${failCount} 张照片没加载出来（可能格式不兼容，例如 HEIC）。`;
+                  imgs.appendChild(warn);
                 }
               }
             } else {
