@@ -459,6 +459,23 @@
       return res.json();
     }
 
+    async function ghFetchRaw(repoPath){
+      const enc = repoPath.split('/').map(encodeURIComponent).join('/');
+      const url = `https://api.github.com/repos/${encodeURIComponent(GH_OWNER)}/${encodeURIComponent(GH_REPO)}/contents/${enc}?ref=main`;
+      const res = await fetch(url, {
+        headers: {
+          'authorization': `Bearer ${GH_TOKEN}`,
+          'accept': 'application/vnd.github.raw',
+          'x-github-api-version': '2022-11-28',
+        }
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`${res.status} ${t.slice(0, 200)}`);
+      }
+      return res.blob();
+    }
+
     async function ghPutFile(path, contentBase64, message){
       const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}?ref=main`;
       let sha;
@@ -720,17 +737,11 @@
                     const imgFile = await ghGetFile(p);
 
                     let blob;
-                    // Prefer download_url for large files.
-                    if (imgFile.download_url) {
-                      const res = await fetch(imgFile.download_url, {
-                        headers: {
-                          'authorization': `Bearer ${GH_TOKEN}`,
-                          'accept': 'application/octet-stream',
-                        }
-                      });
-                      if (!res.ok) throw new Error('download_failed');
-                      blob = await res.blob();
-                    } else {
+                    try {
+                      // Best compatibility: fetch raw bytes via GitHub API (CORS+auth ok).
+                      blob = await ghFetchRaw(p);
+                    } catch {
+                      // Fallback to base64 content (works for small files)
                       const b64 = String(imgFile.content || '').replace(/\n/g,'');
                       if (!b64) throw new Error('no_content');
                       const bin = atob(b64);
