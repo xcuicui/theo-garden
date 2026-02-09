@@ -185,17 +185,18 @@
     .reactWho{font-size: 11px; color: rgba(0,0,0,0.45); margin-top: 2px; padding-left: 8px;}
     .reactWrap{display:flex; flex-direction:column; align-items:flex-start;}
 
-    .commentBox{margin-top:10px; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;}
+    .commentBox{margin-top:10px; display:flex; gap:10px; align-items:center;}
     .commentInput{
       flex: 1;
-      min-width: 220px;
+      min-width: 200px;
       border-radius: 16px;
       border: 1px solid rgba(31,102,227,0.16);
       padding: 10px 12px;
       font-size: 13px;
       outline:none;
       background: rgba(255,255,255,0.92);
-      line-height: 1.6;
+      line-height: 1.2;
+      height: 38px;
     }
     .commentList{margin-top:10px; display:grid; gap:8px;}
     .commentItem{border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); background: rgba(255,255,255,0.70); padding: 10px;}
@@ -973,7 +974,24 @@
           }
         };
 
-        // build reactions buttons
+        // comments UI (one-line) + reactions below input
+        const commentBox = document.createElement('div');
+        commentBox.className = 'commentBox';
+
+        const input = document.createElement('input');
+        input.className = 'commentInput';
+        input.type = 'text';
+        input.placeholder = '想对 ta 说点什么…（最多 200 字）';
+
+        const sendBtn = document.createElement('button');
+        sendBtn.type = 'button';
+        sendBtn.className = 'replyBtn';
+        sendBtn.textContent = '发送';
+
+        // draft reaction toggle states (key -> desiredBool)
+        const draft = {};
+
+        // build reactions buttons (below input)
         for (const def of REACTIONS) {
           const wrap = document.createElement('div');
           wrap.className = 'reactWrap';
@@ -995,25 +1013,33 @@
 
           const renderOne = () => {
             const arr = Array.isArray(rs[def.key]) ? rs[def.key] : [];
-            const on = user && arr.includes(user);
-            btn.classList.toggle('on', !!on);
+            const has = user && arr.includes(user);
+            const desired = (def.key in draft) ? !!draft[def.key] : has;
+            btn.classList.toggle('on', !!desired);
             cnt.textContent = String(arr.length || 0);
             who.textContent = whoText(arr);
             who.style.display = arr.length ? 'block' : 'none';
           };
 
+          const iconToken = ` ${def.icon} `;
+
           btn.onclick = () => {
             if (!user) { toast('未登录，无法互动～'); return; }
             const arr0 = Array.isArray(rs[def.key]) ? rs[def.key].map(String) : [];
             const has = arr0.includes(user);
-            const desired = !has;
-            const next = desired ? Array.from(new Set(arr0.concat([user]))) : arr0.filter(x => x !== user);
-            if (next.length) rs[def.key] = next; else delete rs[def.key];
+            const curDesired = (def.key in draft) ? !!draft[def.key] : has;
+            const desired = !curDesired;
+            draft[def.key] = desired;
 
-            setOp(dayStr, eid, def.key, desired);
-            scheduleFlush(dayStr);
+            // show the icon in the input as a hint (insert/remove)
+            const v0 = String(input.value || '');
+            if (desired) {
+              if (!v0.includes(def.icon)) input.value = (v0 + iconToken).trim();
+            } else {
+              input.value = v0.replaceAll(def.icon, '').replace(/\s{2,}/g,' ').trim();
+            }
+
             renderOne();
-            renderSummary();
           };
 
           btn.appendChild(icon);
@@ -1024,34 +1050,43 @@
           renderOne();
         }
 
-        // comments UI
-        const commentBox = document.createElement('div');
-        commentBox.className = 'commentBox';
-
-        const input = document.createElement('textarea');
-        input.className = 'commentInput';
-        input.placeholder = '想对 ta 说点什么…（最多 200 字）';
-        input.rows = 2;
-
-        const sendBtn = document.createElement('button');
-        sendBtn.type = 'button';
-        sendBtn.className = 'replyBtn';
-        sendBtn.textContent = '发送';
-
         const listEl = document.createElement('div');
         listEl.className = 'commentList';
 
         sendBtn.onclick = async () => {
           const v = String(input.value || '').trim();
-          if (!v) return;
-          await saveComment(dayStr, eid, v);
+          const hasDraft = Object.keys(draft).length > 0;
+          if (!v && !hasDraft) return;
+
+          // commit draft reactions (toggle) only when sending
+          if (hasDraft) {
+            for (const [k, desired] of Object.entries(draft)) {
+              setOp(dayStr, eid, k, !!desired);
+              // also update local view for summary/render
+              const arr0 = Array.isArray(rs[k]) ? rs[k].map(String) : [];
+              const has = user && arr0.includes(user);
+              if (!!desired && !has && user) rs[k] = Array.from(new Set(arr0.concat([user])));
+              if (!desired && has && user) {
+                const next = arr0.filter(x => x !== user);
+                if (next.length) rs[k] = next; else delete rs[k];
+              }
+            }
+            await flushReactions(dayStr);
+            for (const kk of Object.keys(draft)) delete draft[kk];
+          }
+
+          if (v) {
+            await saveComment(dayStr, eid, v);
+          }
+
           input.value = '';
           renderPanelComments();
           renderSummary();
         };
 
         input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
             sendBtn.click();
           }
         });
@@ -1059,8 +1094,8 @@
         commentBox.appendChild(input);
         commentBox.appendChild(sendBtn);
 
-        panel.appendChild(bar);
         panel.appendChild(commentBox);
+        panel.appendChild(bar);
         panel.appendChild(listEl);
 
         replyBtn.onclick = () => {
