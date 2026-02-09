@@ -130,6 +130,35 @@
 
     .note{margin-top:12px; font-size:12px; color: rgba(0,0,0,0.46); line-height:1.6}
 
+    /* reactions */
+    .reactions{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;}
+    .reactBtn{
+      border: 1px solid rgba(31,102,227,0.14);
+      background: rgba(255,255,255,0.74);
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.06);
+      color: rgba(0,0,0,0.78);
+      display:flex;
+      align-items:center;
+      gap:6px;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .reactBtn.on{
+      background: linear-gradient(135deg, rgba(11,42,120,0.10), rgba(90,167,255,0.22));
+      border-color: rgba(31,102,227,0.26);
+      box-shadow: 0 14px 30px rgba(31,102,227,0.12);
+    }
+    .reactIcon{font-size: 15px;}
+    .reactCount{font-weight: 900; font-size: 12px; color: rgba(0,0,0,0.58)}
+    .reactWho{font-size: 11px; color: rgba(0,0,0,0.45); margin-top: 2px; padding-left: 8px;}
+    .reactWrap{display:flex; flex-direction:column; align-items:flex-start;}
+
     /* calendar */
     .calHead{margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:10px;}
     .calTitle{font-weight:950; color: rgba(0,0,0,0.78);}
@@ -550,7 +579,7 @@
       const download_url = j.download_url || '';
 
       if (j.content) {
-        return { content: j.content, encoding: j.encoding, path: j.path, name: j.name, download_url };
+        return { content: j.content, encoding: j.encoding, path: j.path, name: j.name, download_url, sha: j.sha };
       }
 
       // Fallback 1: blobs API (may truncate for large blobs)
@@ -562,11 +591,12 @@
           path: j.path,
           name: j.name,
           download_url,
+          sha: j.sha,
           truncated: !!b.truncated,
         };
       }
 
-      return { content: '', encoding: 'base64', path: j.path, name: j.name, download_url };
+      return { content: '', encoding: 'base64', path: j.path, name: j.name, download_url, sha: j.sha };
     }
 
     function mimeFromPath(p){
@@ -595,8 +625,36 @@
       }
     }
 
+    async function ghTryGetJsonWithSha(path){
+      try {
+        const f = await ghGetFile(path);
+        const txt = f.encoding === 'base64' ? b64ToUtf8(f.content) : '';
+        return { json: JSON.parse(txt), sha: f.sha || '' };
+      } catch {
+        return null;
+      }
+    }
+
     let notesIndex = { items: [] };
     const dayCache = new Map(); // day -> daily json
+
+    // reactions cache (day -> reactions json)
+    const reactCache = new Map();
+    // pending operations (day -> entryId -> key -> desiredBool)
+    const reactOps = new Map();
+    // debounce timers per day
+    const reactTimers = new Map();
+    const REACT_DEBOUNCE_MS = 1200;
+
+    const REACTIONS = [
+      { key: 'flutter', label: '心动', icon: '💓' },
+      { key: 'hug', label: '拥抱', icon: '🫂' },
+      { key: 'pat', label: '摸头', icon: "(´･･)ﾉ(._.`)" },
+      { key: 'coffee', label: '递咖啡', icon: '☕️' },
+      { key: 'cake', label: '小蛋糕', icon: '🍰' },
+      { key: 'bliss', label: '幸福', icon: '🥰' },
+    ];
+
     let selectedDay = '';
     let viewY = 0;
     let viewM = 0;
@@ -797,7 +855,179 @@
           div.appendChild(imgs);
         }
 
+        // reactions
+        const user = currentUser();
+        const eid = entryId(dayStr, it.ts);
+        const rs = getReactState(dayStr, eid).reactions;
+        const bar = document.createElement('div');
+        bar.className = 'reactions';
+
+        for (const def of REACTIONS) {
+          const wrap = document.createElement('div');
+          wrap.className = 'reactWrap';
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'reactBtn';
+          btn.title = def.label;
+
+          const icon = document.createElement('span');
+          icon.className = 'reactIcon';
+          icon.textContent = def.icon;
+
+          const cnt = document.createElement('span');
+          cnt.className = 'reactCount';
+
+          const who = document.createElement('div');
+          who.className = 'reactWho';
+
+          const renderOne = () => {
+            const arr = Array.isArray(rs[def.key]) ? rs[def.key] : [];
+            const on = user && arr.includes(user);
+            btn.classList.toggle('on', !!on);
+            cnt.textContent = String(arr.length || 0);
+            who.textContent = whoText(arr);
+            who.style.display = arr.length ? 'block' : 'none';
+          };
+
+          btn.onclick = () => {
+            if (!user) { toast('未登录，无法互动～'); return; }
+            // toggle locally
+            const arr0 = Array.isArray(rs[def.key]) ? rs[def.key].map(String) : [];
+            const has = arr0.includes(user);
+            const desired = !has;
+            const next = desired ? Array.from(new Set(arr0.concat([user]))) : arr0.filter(x => x !== user);
+            if (next.length) rs[def.key] = next; else delete rs[def.key];
+
+            // persist: record desired state and debounce flush
+            setOp(dayStr, eid, def.key, desired);
+            scheduleFlush(dayStr);
+            renderOne();
+          };
+
+          btn.appendChild(icon);
+          btn.appendChild(cnt);
+          wrap.appendChild(btn);
+          wrap.appendChild(who);
+          bar.appendChild(wrap);
+          renderOne();
+        }
+
+        div.appendChild(bar);
         list.appendChild(div);
+      }
+    }
+
+    function currentUser(){
+      try {
+        return (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : '';
+      } catch { return ''; }
+    }
+
+    function entryId(day, ts){
+      return `${day}:${String(ts||'')}`;
+    }
+
+    function normalizeReactionsJson(dayStr, j){
+      if (!j || typeof j !== 'object') return { day: dayStr, items: {} };
+      if (!j.items || typeof j.items !== 'object') j.items = {};
+      j.day = j.day || dayStr;
+      return j;
+    }
+
+    async function ensureReactionsLoaded(dayStr){
+      if (reactCache.has(dayStr)) return;
+      const path = `notes/${dayStr}/reactions.json`;
+      const r = await ghTryGetJson(path);
+      reactCache.set(dayStr, normalizeReactionsJson(dayStr, r));
+    }
+
+    function getReactState(dayStr, eid){
+      const dayObj = reactCache.get(dayStr) || { day: dayStr, items: {} };
+      if (!dayObj.items || typeof dayObj.items !== 'object') dayObj.items = {};
+      if (!dayObj.items[eid]) dayObj.items[eid] = { updatedAt: Date.now(), reactions: {} };
+      const it = dayObj.items[eid];
+      it.reactions = (it.reactions && typeof it.reactions === 'object') ? it.reactions : {};
+      reactCache.set(dayStr, dayObj);
+      return { it, reactions: it.reactions };
+    }
+
+    function whoText(arr){
+      const a = Array.isArray(arr) ? arr.filter(Boolean).map(String) : [];
+      if (a.length === 0) return '';
+      if (a.length === 1) return a[0];
+      if (a.length === 2) return `${a[0]} · ${a[1]}`;
+      return `${a[0]} · ${a[1]} +${a.length-2}`;
+    }
+
+    function scheduleFlush(dayStr){
+      const old = reactTimers.get(dayStr);
+      if (old) clearTimeout(old);
+      reactTimers.set(dayStr, setTimeout(() => flushReactions(dayStr), REACT_DEBOUNCE_MS));
+    }
+
+    function setOp(dayStr, eid, key, desired){
+      const user = currentUser();
+      if (!user) return;
+      if (!reactOps.has(dayStr)) reactOps.set(dayStr, {});
+      const d = reactOps.get(dayStr);
+      if (!d[eid]) d[eid] = {};
+      d[eid][key] = { desired: !!desired, user };
+    }
+
+    function applyOpToJson(dayStr, j, eid, key, user, desired){
+      j = normalizeReactionsJson(dayStr, j);
+      if (!j.items[eid]) j.items[eid] = { updatedAt: Date.now(), reactions: {} };
+      const node = j.items[eid];
+      node.reactions = (node.reactions && typeof node.reactions === 'object') ? node.reactions : {};
+      const cur = Array.isArray(node.reactions[key]) ? node.reactions[key].map(String) : [];
+      const has = cur.includes(user);
+      let next = cur;
+      if (desired && !has) next = cur.concat([user]);
+      if (!desired && has) next = cur.filter(x => x !== user);
+      if (next.length) node.reactions[key] = Array.from(new Set(next));
+      else delete node.reactions[key];
+      node.updatedAt = Date.now();
+      return j;
+    }
+
+    async function flushReactions(dayStr){
+      const ops = reactOps.get(dayStr);
+      if (!ops || !Object.keys(ops).length) return;
+
+      const path = `notes/${dayStr}/reactions.json`;
+
+      // retry on sha conflict
+      for (let attempt=0; attempt<3; attempt++){
+        let base = { day: dayStr, items: {} };
+        try {
+          const got = await ghTryGetJsonWithSha(path);
+          if (got && got.json) base = normalizeReactionsJson(dayStr, got.json);
+        } catch {}
+
+        // apply ops
+        for (const [eid, keys] of Object.entries(ops)){
+          for (const [k, v] of Object.entries(keys||{})){
+            const user = v && v.user ? String(v.user) : '';
+            if (!user) continue;
+            const desired = !!(v && v.desired);
+            base = applyOpToJson(dayStr, base, eid, k, user, desired);
+          }
+        }
+
+        try {
+          await ghPutFile(path, await base64Utf8(JSON.stringify(base, null, 2)), `Update reactions ${dayStr}`);
+          // update cache + clear ops
+          reactCache.set(dayStr, base);
+          reactOps.set(dayStr, {});
+          return;
+        } catch (e) {
+          // likely sha conflict; try again
+          if (attempt === 2) {
+            console.warn('flush reactions failed', e);
+            toast('互动保存失败，稍后再试～');
+          }
+        }
       }
     }
 
@@ -821,6 +1051,8 @@
         if (!daily || typeof daily !== 'object') daily = { day: dayStr, items: [] };
         dayCache.set(dayStr, daily);
       }
+
+      await ensureReactionsLoaded(dayStr);
       await renderDay(dayStr);
     }
 
