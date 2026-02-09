@@ -130,8 +130,34 @@
 
     .note{margin-top:12px; font-size:12px; color: rgba(0,0,0,0.46); line-height:1.6}
 
-    /* reactions */
-    .reactions{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;}
+    /* reactions + reply */
+    .replyRow{margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+    .replyBtn{
+      border: 1px solid rgba(31,102,227,0.14);
+      background: rgba(255,255,255,0.74);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.06);
+      color: rgba(0,0,0,0.78);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .replySummary{font-size:12px; color: rgba(0,0,0,0.46); line-height:1.5; flex:1; min-width: 200px;}
+
+    .replyPanel{
+      width:100%;
+      margin-top:10px;
+      border-radius: 18px;
+      border: 1px solid rgba(31,102,227,0.12);
+      background: rgba(255,255,255,0.64);
+      padding: 12px;
+      display:none;
+    }
+
+    .reactions{display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;}
     .reactBtn{
       border: 1px solid rgba(31,102,227,0.14);
       background: rgba(255,255,255,0.74);
@@ -158,6 +184,23 @@
     .reactCount{font-weight: 900; font-size: 12px; color: rgba(0,0,0,0.58)}
     .reactWho{font-size: 11px; color: rgba(0,0,0,0.45); margin-top: 2px; padding-left: 8px;}
     .reactWrap{display:flex; flex-direction:column; align-items:flex-start;}
+
+    .commentBox{margin-top:10px; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;}
+    .commentInput{
+      flex: 1;
+      min-width: 220px;
+      border-radius: 16px;
+      border: 1px solid rgba(31,102,227,0.16);
+      padding: 10px 12px;
+      font-size: 13px;
+      outline:none;
+      background: rgba(255,255,255,0.92);
+      line-height: 1.6;
+    }
+    .commentList{margin-top:10px; display:grid; gap:8px;}
+    .commentItem{border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); background: rgba(255,255,255,0.70); padding: 10px;}
+    .commentMeta{font-size:11px; color: rgba(0,0,0,0.45)}
+    .commentText{margin-top:4px; font-size:13px; color: rgba(0,0,0,0.72); white-space: pre-wrap; line-height:1.65}
 
     /* calendar */
     .calHead{margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:10px;}
@@ -640,11 +683,14 @@
 
     // reactions cache (day -> reactions json)
     const reactCache = new Map();
-    // pending operations (day -> entryId -> key -> desiredBool)
+    // pending operations (day -> entryId -> key -> {desired,user})
     const reactOps = new Map();
     // debounce timers per day
     const reactTimers = new Map();
     const REACT_DEBOUNCE_MS = 1200;
+
+    // comments cache (day -> comments json)
+    const commentCache = new Map();
 
     const REACTIONS = [
       { key: 'flutter', label: '心动', icon: '💓' },
@@ -855,13 +901,76 @@
           div.appendChild(imgs);
         }
 
-        // reactions
+        // reply button + panel (reactions + comments)
         const user = currentUser();
         const eid = entryId(dayStr, it.ts);
         const rs = getReactState(dayStr, eid).reactions;
+
+        const replyRow = document.createElement('div');
+        replyRow.className = 'replyRow';
+
+        const replyBtn = document.createElement('button');
+        replyBtn.type = 'button';
+        replyBtn.className = 'replyBtn';
+        replyBtn.textContent = '回复';
+
+        const summary = document.createElement('div');
+        summary.className = 'replySummary';
+
+        const panel = document.createElement('div');
+        panel.className = 'replyPanel';
+
         const bar = document.createElement('div');
         bar.className = 'reactions';
 
+        const { doc: cdoc0, arr: carr0 } = getComments(dayStr, eid);
+
+        const renderSummary = () => {
+          // reactions summary
+          let reactParts = [];
+          for (const def of REACTIONS) {
+            const arr = Array.isArray(rs[def.key]) ? rs[def.key] : [];
+            if (arr.length) reactParts.push(`${def.icon}${arr.length}`);
+          }
+          const reactTxt = reactParts.length ? reactParts.join(' ') : '还没有小表情～';
+
+          // comments summary
+          const { arr } = getComments(dayStr, eid);
+          const n = arr.length;
+          const last = n ? arr[n-1] : null;
+          const lastTxt = last && last.text ? String(last.text).slice(0, 40) : '';
+          const cmTxt = n ? `回复 ${n} 条：${lastTxt}` : '还没有文字回复～';
+
+          summary.textContent = `${reactTxt} · ${cmTxt}`;
+        };
+
+        const renderPanelComments = () => {
+          const { arr } = getComments(dayStr, eid);
+          listEl.innerHTML = '';
+          if (!arr.length) {
+            const empty = document.createElement('div');
+            empty.className = 'meta';
+            empty.textContent = '还没有文字回复～';
+            listEl.appendChild(empty);
+            return;
+          }
+          for (const c of arr.slice(-20)) {
+            const ci = document.createElement('div');
+            ci.className = 'commentItem';
+            const m = document.createElement('div');
+            m.className = 'commentMeta';
+            const who = c.author ? `${c.author} · ` : '';
+            m.textContent = who + new Date(c.ts || Date.now()).toLocaleString('zh-CN');
+            const t = document.createElement('div');
+            t.className = 'commentText';
+            t.textContent = c.text || '';
+            ci.appendChild(m);
+            ci.appendChild(t);
+            listEl.appendChild(ci);
+          }
+        };
+
+        // build reactions buttons
         for (const def of REACTIONS) {
           const wrap = document.createElement('div');
           wrap.className = 'reactWrap';
@@ -892,17 +1001,16 @@
 
           btn.onclick = () => {
             if (!user) { toast('未登录，无法互动～'); return; }
-            // toggle locally
             const arr0 = Array.isArray(rs[def.key]) ? rs[def.key].map(String) : [];
             const has = arr0.includes(user);
             const desired = !has;
             const next = desired ? Array.from(new Set(arr0.concat([user]))) : arr0.filter(x => x !== user);
             if (next.length) rs[def.key] = next; else delete rs[def.key];
 
-            // persist: record desired state and debounce flush
             setOp(dayStr, eid, def.key, desired);
             scheduleFlush(dayStr);
             renderOne();
+            renderSummary();
           };
 
           btn.appendChild(icon);
@@ -913,7 +1021,60 @@
           renderOne();
         }
 
-        div.appendChild(bar);
+        // comments UI
+        const commentBox = document.createElement('div');
+        commentBox.className = 'commentBox';
+
+        const input = document.createElement('textarea');
+        input.className = 'commentInput';
+        input.placeholder = '想对 ta 说点什么…（最多 200 字）';
+        input.rows = 2;
+
+        const sendBtn = document.createElement('button');
+        sendBtn.type = 'button';
+        sendBtn.className = 'replyBtn';
+        sendBtn.textContent = '发送';
+
+        const listEl = document.createElement('div');
+        listEl.className = 'commentList';
+
+        sendBtn.onclick = async () => {
+          const v = String(input.value || '').trim();
+          if (!v) return;
+          await saveComment(dayStr, eid, v);
+          input.value = '';
+          renderPanelComments();
+          renderSummary();
+        };
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            sendBtn.click();
+          }
+        });
+
+        commentBox.appendChild(input);
+        commentBox.appendChild(sendBtn);
+
+        panel.appendChild(bar);
+        panel.appendChild(commentBox);
+        panel.appendChild(listEl);
+
+        replyBtn.onclick = () => {
+          const open = panel.style.display !== 'none';
+          panel.style.display = open ? 'none' : 'block';
+          if (!open) {
+            renderPanelComments();
+          }
+        };
+
+        replyRow.appendChild(replyBtn);
+        replyRow.appendChild(summary);
+
+        div.appendChild(replyRow);
+        div.appendChild(panel);
+
+        renderSummary();
         list.appendChild(div);
       }
     }
@@ -940,6 +1101,66 @@
       const path = `notes/${dayStr}/reactions.json`;
       const r = await ghTryGetJson(path);
       reactCache.set(dayStr, normalizeReactionsJson(dayStr, r));
+    }
+
+    function normalizeCommentsJson(dayStr, j){
+      if (!j || typeof j !== 'object') return { day: dayStr, items: {} };
+      if (!j.items || typeof j.items !== 'object') j.items = {};
+      j.day = j.day || dayStr;
+      return j;
+    }
+
+    async function ensureCommentsLoaded(dayStr){
+      if (commentCache.has(dayStr)) return;
+      const path = `notes/${dayStr}/comments.json`;
+      const r = await ghTryGetJson(path);
+      commentCache.set(dayStr, normalizeCommentsJson(dayStr, r));
+    }
+
+    function getComments(dayStr, eid){
+      const d = commentCache.get(dayStr) || { day: dayStr, items: {} };
+      if (!d.items || typeof d.items !== 'object') d.items = {};
+      const arr = Array.isArray(d.items[eid]) ? d.items[eid] : [];
+      return { doc: d, arr };
+    }
+
+    async function saveComment(dayStr, eid, text){
+      const user = currentUser();
+      if (!user) { toast('未登录，无法回复～'); return; }
+      const t = String(text||'').trim();
+      if (!t) return;
+      if (t.length > 200) { toast('回复太长啦（最多 200 字）'); return; }
+
+      // optimistic update
+      const { doc, arr } = getComments(dayStr, eid);
+      const item = { ts: Date.now(), author: user, text: t };
+      const nextArr = arr.concat([item]);
+      doc.items[eid] = nextArr;
+      doc.updatedAt = Date.now();
+      commentCache.set(dayStr, doc);
+
+      const path = `notes/${dayStr}/comments.json`;
+      for (let attempt=0; attempt<3; attempt++){
+        let base = { day: dayStr, items: {} };
+        try {
+          const got = await ghTryGetJsonWithSha(path);
+          if (got && got.json) base = normalizeCommentsJson(dayStr, got.json);
+        } catch {}
+        const baseArr = Array.isArray(base.items[eid]) ? base.items[eid] : [];
+        base.items[eid] = baseArr.concat([item]);
+        base.updatedAt = Date.now();
+
+        try {
+          await ghPutFile(path, await base64Utf8(JSON.stringify(base, null, 2)), `Add comment ${dayStr}`);
+          commentCache.set(dayStr, base);
+          return;
+        } catch (e) {
+          if (attempt === 2) {
+            console.warn('save comment failed', e);
+            toast('回复保存失败，稍后再试～');
+          }
+        }
+      }
     }
 
     function getReactState(dayStr, eid){
@@ -1052,7 +1273,10 @@
         dayCache.set(dayStr, daily);
       }
 
-      await ensureReactionsLoaded(dayStr);
+      await Promise.all([
+        ensureReactionsLoaded(dayStr),
+        ensureCommentsLoaded(dayStr),
+      ]);
       await renderDay(dayStr);
     }
 
