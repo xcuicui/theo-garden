@@ -186,6 +186,7 @@
     .reactWrap{display:flex; flex-direction:column; align-items:flex-start;}
 
     .commentBox{margin-top:10px; display:flex; gap:10px; align-items:center;}
+    .draftReacts{font-size:12px; color: rgba(0,0,0,0.48); margin-left:auto;}
     .commentInput{
       flex: 1;
       min-width: 200px;
@@ -983,6 +984,9 @@
         input.type = 'text';
         input.placeholder = '想对 ta 说点什么…（最多 200 字）';
 
+        const draftPill = document.createElement('div');
+        draftPill.className = 'draftReacts';
+
         const sendBtn = document.createElement('button');
         sendBtn.type = 'button';
         sendBtn.className = 'replyBtn';
@@ -990,6 +994,20 @@
 
         // draft reaction toggle states (key -> desiredBool)
         const draft = {};
+
+        function renderDraftPill(){
+          const parts = [];
+          for (const def of REACTIONS) {
+            const arr0 = Array.isArray(rs[def.key]) ? rs[def.key] : [];
+            const has = user && arr0.includes(user);
+            const desired = (def.key in draft) ? !!draft[def.key] : has;
+            if (desired !== has) {
+              parts.push(def.icon);
+            }
+          }
+          draftPill.textContent = parts.length ? ('已选：' + parts.join(' ')) : '';
+          draftPill.style.display = parts.length ? 'block' : 'none';
+        }
 
         // build reactions buttons (below input)
         for (const def of REACTIONS) {
@@ -1019,9 +1037,8 @@
             cnt.textContent = String(arr.length || 0);
             who.textContent = whoText(arr);
             who.style.display = arr.length ? 'block' : 'none';
+            renderDraftPill();
           };
-
-          const iconToken = ` ${def.icon} `;
 
           btn.onclick = () => {
             if (!user) { toast('未登录，无法互动～'); return; }
@@ -1030,15 +1047,6 @@
             const curDesired = (def.key in draft) ? !!draft[def.key] : has;
             const desired = !curDesired;
             draft[def.key] = desired;
-
-            // show the icon in the input as a hint (insert/remove)
-            const v0 = String(input.value || '');
-            if (desired) {
-              if (!v0.includes(def.icon)) input.value = (v0 + iconToken).trim();
-            } else {
-              input.value = v0.replaceAll(def.icon, '').replace(/\s{2,}/g,' ').trim();
-            }
-
             renderOne();
           };
 
@@ -1073,6 +1081,7 @@
             }
             await flushReactions(dayStr);
             for (const kk of Object.keys(draft)) delete draft[kk];
+            renderDraftPill();
           }
 
           if (v) {
@@ -1093,6 +1102,7 @@
 
         commentBox.appendChild(input);
         commentBox.appendChild(sendBtn);
+        commentBox.appendChild(draftPill);
 
         panel.appendChild(commentBox);
         panel.appendChild(bar);
