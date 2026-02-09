@@ -931,7 +931,8 @@
           let reactParts = [];
           for (const def of REACTIONS) {
             const arr = Array.isArray(rs[def.key]) ? rs[def.key] : [];
-            if (arr.length) reactParts.push(`${def.icon}${arr.length}`);
+            const names = whoText(arr);
+            if (names) reactParts.push(`${def.icon}${names}`);
           }
           const reactTxt = reactParts.length ? reactParts.join(' ') : '';
 
@@ -1034,9 +1035,11 @@
             const has = user && arr.includes(user);
             const desired = (def.key in draft) ? !!draft[def.key] : has;
             btn.classList.toggle('on', !!desired);
-            cnt.textContent = String(arr.length || 0);
-            who.textContent = whoText(arr);
-            who.style.display = arr.length ? 'block' : 'none';
+            const names = whoText(arr);
+            cnt.textContent = names;
+            cnt.style.display = names ? 'inline' : 'none';
+            who.textContent = '';
+            who.style.display = 'none';
             renderDraftPill();
           };
 
