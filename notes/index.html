@@ -931,16 +931,20 @@
             const arr = Array.isArray(rs[def.key]) ? rs[def.key] : [];
             if (arr.length) reactParts.push(`${def.icon}${arr.length}`);
           }
-          const reactTxt = reactParts.length ? reactParts.join(' ') : '还没有小表情～';
+          const reactTxt = reactParts.length ? reactParts.join(' ') : '';
 
           // comments summary
           const { arr } = getComments(dayStr, eid);
           const n = arr.length;
           const last = n ? arr[n-1] : null;
           const lastTxt = last && last.text ? String(last.text).slice(0, 40) : '';
-          const cmTxt = n ? `回复 ${n} 条：${lastTxt}` : '还没有文字回复～';
+          const cmTxt = n ? `回复 ${n} 条：${lastTxt}` : '';
 
-          summary.textContent = `${reactTxt} · ${cmTxt}`;
+          const parts = [];
+          if (reactTxt) parts.push(reactTxt);
+          if (cmTxt) parts.push(cmTxt);
+          summary.textContent = parts.join(' · ');
+          summary.style.display = parts.length ? 'block' : 'none';
         };
 
         const renderPanelComments = () => {
