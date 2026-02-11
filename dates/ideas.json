@@ -3,7 +3,7 @@
     "id": "shenzhen-bay-park-picnic-sunrise-theater",
     "title": "日出剧场 · 野餐",
     "tags": [
-      "t:picnic",
+      "t:outdoor",
       "p:shenzhen-bay-park",
       "c:outdoor",
       "v:romantic",
@@ -16,7 +16,7 @@
     "id": "shenzhen-bay-park-bike",
     "title": "深圳湾公园 · 骑车",
     "tags": [
-      "t:bike",
+      "t:outdoor",
       "p:shenzhen-bay-park",
       "c:outdoor",
       "v:fun",
@@ -27,7 +27,7 @@
     "id": "shenzhen-bay-park-walk",
     "title": "深圳湾公园 · 散步",
     "tags": [
-      "t:walk",
+      "t:outdoor",
       "p:shenzhen-bay-park",
       "c:outdoor",
       "v:cozy",
@@ -38,7 +38,7 @@
     "id": "shenzhen-bay-park-cafe-tenritan-qianniaoshuba",
     "title": "深圳湾公园 · 十日谈/千鸟书吧喝咖啡",
     "tags": [
-      "t:cafe",
+      "t:food",
       "p:shenzhen-bay-park",
       "c:outdoor",
       "v:cozy",
@@ -52,7 +52,7 @@
     "id": "qiedao-walk",
     "title": "企鹅岛 · 散步",
     "tags": [
-      "t:walk",
+      "t:outdoor",
       "p:qiedao",
       "c:outdoor",
       "v:fun",
@@ -63,7 +63,7 @@
     "id": "qiedao-bike",
     "title": "企鹅岛 · 骑车",
     "tags": [
-      "t:bike",
+      "t:outdoor",
       "p:qiedao",
       "c:outdoor",
       "v:fun",
@@ -74,7 +74,7 @@
     "id": "qiedao-run-early",
     "title": "企鹅岛 · 早起跑步",
     "tags": [
-      "t:run",
+      "t:outdoor",
       "p:qiedao",
       "c:outdoor",
       "x:early",
@@ -85,7 +85,7 @@
     "id": "qiedao-run-night",
     "title": "企鹅岛 · 夜跑",
     "tags": [
-      "t:run",
+      "t:outdoor",
       "p:qiedao",
       "c:outdoor",
       "x:night",
@@ -96,7 +96,7 @@
     "id": "xiwan-hongshulin-sunset",
     "title": "西湾红树林 · 看日落",
     "tags": [
-      "t:walk",
+      "t:outdoor",
       "p:xiwan-hongshulin",
       "c:outdoor",
       "v:romantic",
@@ -109,7 +109,7 @@
     "id": "denghui",
     "title": "灯会",
     "tags": [
-      "t:festival",
+      "t:outdoor",
       "c:outdoor",
       "v:fun",
       "v:photo",
@@ -120,7 +120,7 @@
     "id": "huanle-gangwan-ferris-wheel",
     "title": "欢乐港湾 · 摩天轮看城景",
     "tags": [
-      "t:viewpoint",
+      "t:outdoor",
       "p:huanle-gangwan",
       "c:outdoor",
       "v:romantic",
@@ -133,7 +133,7 @@
     "id": "huanle-gangwan-walk-nightview",
     "title": "欢乐港湾 · 散步看夜景",
     "tags": [
-      "t:walk",
+      "t:outdoor",
       "p:huanle-gangwan",
       "c:outdoor",
       "v:cozy",
@@ -145,7 +145,7 @@
     "id": "supermarket-snacks-breakfast",
     "title": "逛超市买零食/早餐",
     "tags": [
-      "t:shopping",
+      "t:life",
       "c:indoor",
       "v:cozy",
       "x:daily",
@@ -156,7 +156,7 @@
     "id": "dafen-youhua",
     "title": "大芬油画村 · 画油画",
     "tags": [
-      "t:art",
+      "t:culture",
       "p:dafen-youhuacun",
       "c:indoor",
       "v:healing",
@@ -168,7 +168,7 @@
     "id": "f518-photo-checkin",
     "title": "F518 创意园 · 拍照打卡",
     "tags": [
-      "t:photo",
+      "t:life",
       "p:f518",
       "c:outdoor",
       "v:photo",
@@ -179,7 +179,7 @@
     "id": "f518-cafe-orange-latte",
     "title": "F518 创意园 · 喝咖啡（热橙风味拿铁）",
     "tags": [
-      "t:cafe",
+      "t:food",
       "p:f518",
       "v:cozy",
       "x:orange-latte",
@@ -190,7 +190,7 @@
     "id": "bread-and-coffee",
     "title": "买面包和咖啡",
     "tags": [
-      "t:shopping",
+      "t:life",
       "c:indoor",
       "v:cozy",
       "x:daily",
@@ -201,7 +201,7 @@
     "id": "massage",
     "title": "按摩",
     "tags": [
-      "t:massage",
+      "t:life",
       "c:indoor",
       "v:healing",
       "p:shenzhen"
@@ -211,7 +211,7 @@
     "id": "tangquan",
     "title": "汤泉",
     "tags": [
-      "t:spa",
+      "t:life",
       "c:indoor",
       "v:healing",
       "p:shenzhen"
@@ -221,7 +221,7 @@
     "id": "shopping-laifushi",
     "title": "逛商场 · 来福士",
     "tags": [
-      "t:shopping",
+      "t:life",
       "c:indoor",
       "p:laifushi",
       "v:cozy",
@@ -232,7 +232,7 @@
     "id": "shopping-haiancheng",
     "title": "逛商场 · 海岸城",
     "tags": [
-      "t:shopping",
+      "t:life",
       "c:indoor",
       "p:haiancheng",
       "v:cozy",
@@ -243,7 +243,7 @@
     "id": "gym",
     "title": "一起去健身房健身运动",
     "tags": [
-      "t:gym",
+      "t:life",
       "c:indoor",
       "v:challenge",
       "p:shenzhen"
@@ -253,7 +253,7 @@
     "id": "daxuecheng-library-cafe",
     "title": "大学城图书馆 · 看书喝咖啡",
     "tags": [
-      "t:library",
+      "t:life",
       "c:indoor",
       "p:daxuecheng",
       "v:cozy",
@@ -265,7 +265,7 @@
     "id": "daxuecheng-walk-campus",
     "title": "大学城 · 逛校园",
     "tags": [
-      "t:walk",
+      "t:outdoor",
       "p:daxuecheng",
       "c:outdoor",
       "v:cozy",
@@ -287,7 +287,7 @@
     "id": "movie-knives-out-3",
     "title": "利刃出鞘 3",
     "tags": [
-      "t:movie",
+      "t:watch",
       "c:indoor",
       "v:cozy",
       "x:movie-knives-out-3",
@@ -298,7 +298,7 @@
     "id": "tv-modern-love",
     "title": "Modern Love",
     "tags": [
-      "t:tv",
+      "t:watch",
       "c:indoor",
       "v:cozy",
       "x:modern-love",
@@ -319,7 +319,7 @@
     "id": "hutao-li-drink",
     "title": "胡桃里 · 喝小酒",
     "tags": [
-      "t:drink",
+      "t:food",
       "v:fun",
       "x:alcohol",
       "x:hutao-li",
@@ -398,7 +398,7 @@
     "id": "pistachio-milk-tea",
     "title": "开心果奶绿",
     "tags": [
-      "t:drink",
+      "t:food",
       "v:cozy",
       "x:pistachio",
       "p:shenzhen"
@@ -439,7 +439,7 @@
     "id": "brian-park-guangzhou",
     "title": "布莱恩公园（广州）",
     "tags": [
-      "t:park",
+      "t:outdoor",
       "p:guangzhou",
       "p:bulaien-gongyuan",
       "c:outdoor",
@@ -450,7 +450,7 @@
     "id": "cheesecake-tok-and-jerry",
     "title": "芝士蛋糕 · Tok and Jerry",
     "tags": [
-      "t:dessert",
+      "t:food",
       "v:cozy",
       "x:cheesecake",
       "p:shenzhen"
@@ -460,7 +460,7 @@
     "id": "cake-71cake",
     "title": "芝士蛋糕 · 71cake",
     "tags": [
-      "t:dessert",
+      "t:food",
       "v:cozy",
       "x:cheesecake",
       "p:shenzhen"
@@ -512,7 +512,7 @@
     "id": "yuexiu-park-play",
     "title": "越秀公园（广州）· 游乐园",
     "tags": [
-      "t:play",
+      "t:outdoor",
       "p:guangzhou",
       "p:yuexiu-gongyuan",
       "c:outdoor",
@@ -523,7 +523,7 @@
     "id": "yuexiu-park-sunset",
     "title": "越秀公园（广州）· 看日落",
     "tags": [
-      "t:park",
+      "t:outdoor",
       "p:guangzhou",
       "p:yuexiu-gongyuan",
       "c:outdoor",
@@ -536,7 +536,7 @@
     "id": "bulage-dongjing-pistachio-cake",
     "title": "布歌东京 · 开心果味蛋糕",
     "tags": [
-      "t:dessert",
+      "t:food",
       "v:cozy",
       "x:pistachio",
       "x:cake",
@@ -579,7 +579,7 @@
     "id": "nantou-gucheng-iris-bar",
     "title": "南头古城 · Iris 拉吧",
     "tags": [
-      "t:bar",
+      "t:nightlife",
       "v:fun",
       "p:nantou-gucheng",
       "x:iris",
@@ -590,7 +590,7 @@
     "id": "haishijie-music-dinner",
     "title": "海上世界 · 音乐餐吧",
     "tags": [
-      "t:bar",
+      "t:nightlife",
       "v:fun",
       "p:haishijie",
       "x:music",
@@ -612,7 +612,7 @@
     "id": "mei-ktv",
     "title": "魅 KTV",
     "tags": [
-      "t:ktv",
+      "t:nightlife",
       "v:fun",
       "x:sing",
       "p:shenzhen"
@@ -622,7 +622,7 @@
     "id": "bar-ratio",
     "title": "Bar Ratio",
     "tags": [
-      "t:bar",
+      "t:nightlife",
       "v:fun",
       "x:bar-ratio",
       "p:shenzhen"
@@ -632,7 +632,7 @@
     "id": "shiyue-zhonggu",
     "title": "拾月中古",
     "tags": [
-      "t:shopping",
+      "t:life",
       "v:cozy",
       "x:vintage",
       "p:shenzhen"
@@ -642,7 +642,7 @@
     "id": "kuaile-xiaoka",
     "title": "快乐小卡",
     "tags": [
-      "t:bar",
+      "t:nightlife",
       "v:fun",
       "p:shenzhen"
     ]
@@ -651,7 +651,7 @@
     "id": "why-not",
     "title": "Why Not",
     "tags": [
-      "t:bar",
+      "t:nightlife",
       "v:fun",
       "p:shenzhen"
     ]
@@ -660,7 +660,7 @@
     "id": "drink-salty-lemon-gin-tonic",
     "title": "咸柠金汤力",
     "tags": [
-      "t:drink",
+      "t:food",
       "v:fun",
       "x:gin-tonic",
       "x:salted-lemon",
@@ -671,7 +671,7 @@
     "id": "drink-banlan-pineapple",
     "title": "斑斓菠萝",
     "tags": [
-      "t:drink",
+      "t:food",
       "v:fun",
       "x:pandan",
       "x:pineapple",
@@ -682,7 +682,7 @@
     "id": "drink-mujiangzi",
     "title": "木姜子",
     "tags": [
-      "t:drink",
+      "t:food",
       "v:fun",
       "x:herbal",
       "p:shenzhen"
@@ -692,7 +692,7 @@
     "id": "drink-baixiangguo",
     "title": "百香果",
     "tags": [
-      "t:drink",
+      "t:food",
       "v:cozy",
       "x:passionfruit",
       "p:shenzhen"
@@ -702,7 +702,7 @@
     "id": "xiang-gou",
     "title": "咸狗",
     "tags": [
-      "t:drink",
+      "t:food",
       "v:fun",
       "x:salted-dog",
       "p:shenzhen"
