@@ -142,5 +142,121 @@
     "id": "tv-modern-love",
     "title": "Modern Love",
     "tags": ["t:tv", "c:indoor", "v:cozy", "x:modern-love"]
+  },
+
+  {
+    "id": "hutao-li-food",
+    "title": "胡桃里 · 吃饭",
+    "tags": ["t:food", "v:fun", "x:hutao-li"]
+  },
+  {
+    "id": "hutao-li-drink",
+    "title": "胡桃里 · 喝小酒",
+    "tags": ["t:drink", "v:fun", "x:alcohol", "x:hutao-li"]
+  },
+  {
+    "id": "lakes-cocoa",
+    "title": "辣可可",
+    "tags": ["t:food", "v:cozy"]
+  },
+  {
+    "id": "jinguang-gewang",
+    "title": "金光鸽王",
+    "tags": ["t:food", "v:cozy"]
+  },
+  {
+    "id": "lianxiang-xiyu",
+    "title": "莲香西域",
+    "tags": ["t:food", "v:cozy", "x:xinjiang"]
+  },
+  {
+    "id": "yezi-ji",
+    "title": "椰子鸡",
+    "tags": ["t:food", "v:cozy", "x:coconut-chicken"]
+  },
+  {
+    "id": "liulian-jibao",
+    "title": "榴莲鸡煲",
+    "tags": ["t:food", "v:fun", "x:durian"]
+  },
+  {
+    "id": "zhoudi-hotpot",
+    "title": "粥底火锅",
+    "tags": ["t:food", "v:cozy", "x:hotpot"]
+  },
+  {
+    "id": "xita-laotaitai",
+    "title": "西塔老太太",
+    "tags": ["t:food", "v:cozy", "x:korean"]
+  },
+  {
+    "id": "pistachio-milk-tea",
+    "title": "开心果奶绿",
+    "tags": ["t:drink", "v:cozy", "x:pistachio"]
+  },
+  {
+    "id": "damu-beef-hotpot",
+    "title": "大目牛肉火锅",
+    "tags": ["t:food", "v:cozy", "x:hotpot", "x:beef"]
+  },
+  {
+    "id": "caoshi-yabo",
+    "title": "曹氏鸭脖（微辣+）",
+    "tags": ["t:food", "v:fun", "x:spicy-snack"]
+  },
+  {
+    "id": "pengcheng-jindao",
+    "title": "彭城筋道（徐州烤肉筋）",
+    "tags": ["t:food", "v:fun", "x:xuzhou"]
+  },
+  {
+    "id": "brian-park-guangzhou",
+    "title": "布莱恩公园（广州）",
+    "tags": ["t:park", "p:guangzhou", "p:bulaien-gongyuan", "c:outdoor", "v:cozy"]
+  },
+  {
+    "id": "cheesecake-tok-and-jerry",
+    "title": "芝士蛋糕 · Tok and Jerry",
+    "tags": ["t:dessert", "v:cozy", "x:cheesecake"]
+  },
+  {
+    "id": "cake-71cake",
+    "title": "芝士蛋糕 · 71cake",
+    "tags": ["t:dessert", "v:cozy", "x:cheesecake"]
+  },
+  {
+    "id": "southeast-asian-food",
+    "title": "东南亚菜",
+    "tags": ["t:food", "v:cozy", "x:southeast-asian"]
+  },
+  {
+    "id": "feitun-fuxing-pho",
+    "title": "肥豚福星 · Pho（越南）",
+    "tags": ["t:food", "v:cozy", "x:vietnamese", "x:pho"]
+  },
+  {
+    "id": "feitun-fuxing-lemon-fish",
+    "title": "肥豚福星 · 柠檬鲈鱼",
+    "tags": ["t:food", "v:cozy", "x:fish", "x:lemon"]
+  },
+  {
+    "id": "luming-jiujia-shanyu",
+    "title": "鹿鸣酒家（鳝鱼）",
+    "tags": ["t:food", "v:cozy", "x:eel"]
+  },
+  {
+    "id": "yuexiu-park-play",
+    "title": "越秀公园（广州）· 游乐园",
+    "tags": ["t:play", "p:guangzhou", "p:yuexiu-gongyuan", "c:outdoor", "v:fun"]
+  },
+  {
+    "id": "yuexiu-park-sunset",
+    "title": "越秀公园（广州）· 看日落",
+    "tags": ["t:park", "p:guangzhou", "p:yuexiu-gongyuan", "c:outdoor", "v:romantic", "v:photo", "x:sunset"]
+  },
+  {
+    "id": "bulage-dongjing-pistachio-cake",
+    "title": "布歌东京 · 开心果味蛋糕",
+    "tags": ["t:dessert", "v:cozy", "x:pistachio", "x:cake", "p:bulage-dongjing"]
   }
 ]
