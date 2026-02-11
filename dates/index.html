@@ -111,6 +111,13 @@
     .tag.c{background: rgba(90,167,255,0.12); border-color: rgba(90,167,255,0.22); color: rgba(0,70,160,0.86)}
     .tag.p{background: rgba(0,170,120,0.10); border-color: rgba(0,170,120,0.22); color: rgba(0,110,78,0.86)}
     .tag.x{background: rgba(120,120,120,0.10); border-color: rgba(120,120,120,0.20); color: rgba(60,60,60,0.86)}
+    .tag.toggle{cursor:pointer;}
+    .tag.toggle.sel{box-shadow: 0 14px 34px rgba(11,42,120,0.10); transform: translateY(-1px);}
+    .tag.toggle.sel.t{background: rgba(11,42,120,0.16);}
+    .tag.toggle.sel.v{background: rgba(255,120,180,0.16);}
+    .tag.toggle.sel.c{background: rgba(90,167,255,0.18);}
+    .tag.toggle.sel.p{background: rgba(0,170,120,0.16);}
+    .tag.toggle.sel.x{background: rgba(120,120,120,0.16);}
 
     label{display:block; margin-top:12px; font-size:12px; color: rgba(0,0,0,0.55)}
     textarea{
@@ -192,13 +199,13 @@
         </div>
         <div class="pillRow" id="selectedFilters" style="margin-top:10px; display:none;"></div>
 
-        <div class="pillRow" id="groupTypeBar" style="margin-top:10px;">
+        <div class="pillRow" id="groupTypeBar" style="margin-top:10px; align-items:center;">
           <span class="meta" style="margin-right:6px;">按标签分类：</span>
-          <button class="pill" id="group_t">类型</button>
-          <button class="pill" id="group_v">氛围</button>
-          <button class="pill" id="group_c">约束</button>
-          <button class="pill" id="group_p">地点</button>
-          <button class="pill" id="group_none">不分类</button>
+          <button class="tag toggle t" id="group_t" type="button">类型</button>
+          <button class="tag toggle v" id="group_v" type="button">氛围</button>
+          <button class="tag toggle c" id="group_c" type="button">约束</button>
+          <button class="tag toggle p" id="group_p" type="button">地点</button>
+          <button class="tag toggle x" id="group_none" type="button">不分类</button>
         </div>
 
         <div class="ideaList" id="ideaList"></div>
@@ -861,13 +868,13 @@
       // reset collapse state when switching
       collapsedGroups.clear();
       groupCollapseInit = !!activeGroupType;
-      // update button styles (simple selected outline)
+      // update button styles (tag-colored selected state)
       ['t','v','c','p','none'].forEach(k => {
         const id = k==='none' ? 'group_none' : ('group_' + k);
         const el = $(id);
         if (!el) return;
         const on = (k==='none' ? !activeGroupType : activeGroupType===k);
-        el.style.outline = on ? '3px solid rgba(11,42,120,0.18)' : 'none';
+        el.classList.toggle('sel', !!on);
       });
       renderIdeas();
     }
