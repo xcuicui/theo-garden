@@ -110,27 +110,63 @@
     .hub{
       width: min(760px, calc(100% - 32px));
       margin-top: 14px;
-      display: flex;
-      gap: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
       justify-content: center;
-      flex-wrap: wrap;
+      align-items: stretch;
     }
+    @media (max-width: 720px){
+      .hub{ grid-template-columns: 1fr; }
+    }
+
     a.entry{
-      display:inline-block;
+      display:block;
       text-decoration:none;
-      color: rgba(11,42,120,0.80);
-      background: rgba(255,255,255,0.78);
-      border: 1px solid rgba(11,42,120,0.10);
-      padding: 11px 16px;
-      border-radius: 999px;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-      transition: transform 120ms ease, box-shadow 120ms ease;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+
+      border-radius: 22px;
+      padding: 14px 14px;
+      border: 1px solid rgba(11,42,120,0.10);
+      background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.62));
+      box-shadow: 0 16px 44px rgba(11,42,120,0.10);
+      backdrop-filter: blur(12px);
+
+      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+      position: relative;
+      overflow: hidden;
+      min-height: 96px;
     }
-    a.entry:hover{ transform: translateY(-1px); box-shadow: 0 14px 30px rgba(0,0,0,0.10); }
-    a.entry:active{ transform: translateY(0px) scale(0.99); }
+    a.entry::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background: radial-gradient(520px 260px at 10% 5%, rgba(90,167,255,0.22), transparent 60%);
+      opacity: 0.75;
+      pointer-events:none;
+    }
+    a.entry:hover{ transform: translateY(-2px); box-shadow: 0 22px 60px rgba(11,42,120,0.14); border-color: rgba(11,42,120,0.16); }
+    a.entry:active{ transform: translateY(0px) scale(0.995); }
+
+    .entryRow{ position: relative; display:flex; gap:12px; align-items:flex-start; }
+    .entryIcon{
+      width: 40px; height: 40px; border-radius: 14px;
+      display:grid; place-items:center;
+      border: 1px solid rgba(11,42,120,0.10);
+      background: rgba(255,255,255,0.70);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+      flex: 0 0 auto;
+    }
+    .entryMain{ min-width: 0; }
+    .entryTitle{ font-weight: 950; color: rgba(0,0,0,0.82); letter-spacing: 0.2px; }
+    .entryDesc{ margin-top:6px; font-size: 13px; line-height: 1.55; color: rgba(0,0,0,0.54); }
+
+    /* theme */
+    a.entry.notes::before{ background: radial-gradient(520px 260px at 10% 5%, rgba(255,120,180,0.22), transparent 60%); }
+    a.entry.dates::before{ background: radial-gradient(520px 260px at 10% 5%, rgba(90,167,255,0.26), transparent 60%); }
+    a.entry.garden::before{ background: radial-gradient(520px 260px at 10% 5%, rgba(0,170,120,0.20), transparent 60%); }
 
     /* little “pop” effect when changing text */
     .pop { animation: pop 180ms ease-out; }
@@ -195,10 +231,45 @@
   </main>
 
   <nav class="hub" aria-label="entries">
-    <a class="entry" href="../notes/">Theo的碎碎念收纳处</a>
-    <a class="entry" href="../dates/">约会日记</a>
-    <a class="entry" href="../simple/">Theo的小花园</a>
-    <a class="entry" href="#" id="logout">退出登录</a>
+    <a class="entry notes" href="../notes/">
+      <div class="entryRow">
+        <div class="entryIcon" aria-hidden="true">✎</div>
+        <div class="entryMain">
+          <div class="entryTitle">碎碎念</div>
+          <div class="entryDesc">把想你时的胡言乱语都收好。</div>
+        </div>
+      </div>
+    </a>
+
+    <a class="entry dates" href="../dates/">
+      <div class="entryRow">
+        <div class="entryIcon" aria-hidden="true">☁</div>
+        <div class="entryMain">
+          <div class="entryTitle">约会日记</div>
+          <div class="entryDesc">把每一次见面，都写成故事。</div>
+        </div>
+      </div>
+    </a>
+
+    <a class="entry garden" href="../simple/">
+      <div class="entryRow">
+        <div class="entryIcon" aria-hidden="true">❀</div>
+        <div class="entryMain">
+          <div class="entryTitle">小花园</div>
+          <div class="entryDesc">我们的小世界，慢慢长大。</div>
+        </div>
+      </div>
+    </a>
+
+    <a class="entry" href="#" id="logout" style="grid-column: 1 / -1; min-height: 0;">
+      <div class="entryRow">
+        <div class="entryIcon" aria-hidden="true">↩</div>
+        <div class="entryMain">
+          <div class="entryTitle">退出登录</div>
+          <div class="entryDesc">把这扇门轻轻关上。</div>
+        </div>
+      </div>
+    </a>
   </nav>
 
   <div class="burst" id="burst"></div>
