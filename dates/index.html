@@ -86,7 +86,13 @@
     }
     .ideaBtn.sel{ outline: 3px solid rgba(11,42,120,0.18); }
     .ideaTitle{font-size:14px; color: rgba(0,0,0,0.78); font-weight:900;}
-    .ideaTags{margin-top:4px; font-size:12px; color: rgba(0,0,0,0.46)}
+    .ideaTags{margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; font-size:12px; color: rgba(0,0,0,0.46)}
+    .tag{display:inline-flex; align-items:center; gap:6px; padding: 4px 8px; border-radius:999px; border:1px solid rgba(0,0,0,0.06); background: rgba(255,255,255,0.70); color: rgba(0,0,0,0.72)}
+    .tag.t{background: rgba(11,42,120,0.10); border-color: rgba(11,42,120,0.18); color: rgba(11,42,120,0.92)}
+    .tag.v{background: rgba(255,120,180,0.10); border-color: rgba(255,120,180,0.22); color: rgba(150,0,70,0.86)}
+    .tag.c{background: rgba(90,167,255,0.12); border-color: rgba(90,167,255,0.22); color: rgba(0,70,160,0.86)}
+    .tag.p{background: rgba(0,170,120,0.10); border-color: rgba(0,170,120,0.22); color: rgba(0,110,78,0.86)}
+    .tag.x{background: rgba(120,120,120,0.10); border-color: rgba(120,120,120,0.20); color: rgba(60,60,60,0.86)}
 
     label{display:block; margin-top:12px; font-size:12px; color: rgba(0,0,0,0.55)}
     textarea{
@@ -612,8 +618,8 @@
             const btn = document.createElement('button');
             btn.className = 'ideaBtn' + (curIdea && curIdea.id === it.id ? ' sel' : '');
             btn.type = 'button';
-            const tags = Array.isArray(it.tags) && it.tags.length ? ('#' + it.tags.join(' #')) : '';
-            btn.innerHTML = `<div class="ideaTitle">${escapeHtml(it.title || it.id)}</div>` + (tags ? `<div class="ideaTags">${escapeHtml(tags)}</div>` : '');
+            const tagsHtml = (Array.isArray(it.tags) && it.tags.length) ? renderTagsHtml(it.tags) : '';
+            btn.innerHTML = `<div class="ideaTitle">${escapeHtml(it.title || it.id)}</div>` + (tagsHtml ? `<div class="ideaTags">${tagsHtml}</div>` : '');
             btn.onclick = () => {
               curIdea = it;
               $('curIdeaTitle').textContent = it.title || it.id;
@@ -629,6 +635,94 @@
 
     function escapeHtml(s){
       return String(s||'').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // --- Tag display (make tags readable) ---
+    // Keep ideas.json tags as typed keys (t:/v:/c:/p:/x:), but display Chinese labels with colors.
+    const TAG_CN = {
+      // t:
+      't:art':'画画/艺术',
+      't:bar':'酒吧/拉吧',
+      't:bike':'骑车',
+      't:cafe':'咖啡',
+      't:dessert':'甜品/蛋糕',
+      't:drink':'饮品/酒',
+      't:festival':'灯会/节日活动',
+      't:food':'吃饭',
+      't:gym':'健身',
+      't:ktv':'KTV',
+      't:library':'图书馆',
+      't:massage':'按摩',
+      't:movie':'电影',
+      't:park':'公园',
+      't:photo':'拍照/打卡',
+      't:picnic':'野餐',
+      't:play':'游乐园/玩',
+      't:run':'跑步',
+      't:shopping':'逛街/买东西',
+      't:spa':'汤泉/泡汤',
+      't:tv':'追剧',
+      't:viewpoint':'观景/城景',
+      't:walk':'散步',
+
+      // v:
+      'v:challenge':'挑战/运动',
+      'v:cozy':'舒服/松弛',
+      'v:fun':'热闹/好玩',
+      'v:healing':'治愈/放松',
+      'v:photo':'出片',
+      'v:romantic':'浪漫',
+
+      // c:
+      'c:indoor':'室内',
+      'c:outdoor':'室外',
+
+      // p: (常用地点)
+      'p:shenzhen':'深圳',
+      'p:guangzhou':'广州',
+      'p:shenzhen-bay-park':'深圳湾公园',
+      'p:qiedao':'企鹅岛',
+      'p:xiwan-hongshulin':'西湾红树林',
+      'p:huanle-gangwan':'欢乐港湾',
+      'p:haishijie':'海上世界',
+      'p:nantou-gucheng':'南头古城',
+      'p:daxuecheng':'大学城',
+      'p:f518':'F518 创意园',
+      'p:dafen-youhuacun':'大芬油画村',
+      'p:laifushi':'来福士',
+      'p:haiancheng':'海岸城',
+      'p:yuexiu-gongyuan':'越秀公园',
+      'p:bulaien-gongyuan':'布莱恩公园',
+      'p:bulage-dongjing':'布歌东京'
+    };
+
+    function tagType(tag){
+      const m = /^([tvcp x]):/.exec(String(tag||''));
+      if (/^t:/.test(tag)) return 't';
+      if (/^v:/.test(tag)) return 'v';
+      if (/^c:/.test(tag)) return 'c';
+      if (/^p:/.test(tag)) return 'p';
+      if (/^x:/.test(tag)) return 'x';
+      return 'x';
+    }
+
+    function tagLabel(tag){
+      const key = String(tag||'');
+      if (TAG_CN[key]) return TAG_CN[key];
+      // fallback: strip prefix and show raw
+      const idx = key.indexOf(':');
+      return idx > 0 ? key.slice(idx+1) : key;
+    }
+
+    function renderTagsHtml(tags){
+      const arr = Array.isArray(tags) ? tags : [];
+      // order: t, v, c, p, x
+      const order = { t:0, v:1, c:2, p:3, x:4 };
+      const sorted = arr.slice().sort((a,b)=> (order[tagType(a)]??9) - (order[tagType(b)]??9));
+      return sorted.map(t => {
+        const ty = tagType(t);
+        return `<span class="tag ${ty}" title="${escapeHtml(t)}">${escapeHtml(tagLabel(t))}</span>`;
+      }).join('');
     }
 
     async function loadIdeas(){
