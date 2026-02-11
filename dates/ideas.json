@@ -258,5 +258,88 @@
     "id": "bulage-dongjing-pistachio-cake",
     "title": "布歌东京 · 开心果味蛋糕",
     "tags": ["t:dessert", "v:cozy", "x:pistachio", "x:cake", "p:bulage-dongjing"]
+  },
+
+  {
+    "id": "pengxiang-fish",
+    "title": "烹湘 · 鱼",
+    "tags": ["t:food", "v:cozy", "x:hunan"]
+  },
+  {
+    "id": "pengxiang-jiza",
+    "title": "烹湘 · 鸡杂",
+    "tags": ["t:food", "v:fun", "x:hunan", "x:spicy"]
+  },
+  {
+    "id": "pengxiang-sigua",
+    "title": "烹湘 · 丝瓜",
+    "tags": ["t:food", "v:cozy", "x:hunan"]
+  },
+
+  {
+    "id": "nantou-gucheng-iris-bar",
+    "title": "南头古城 · Iris 拉吧",
+    "tags": ["t:bar", "v:fun", "p:nantou-gucheng", "x:iris"]
+  },
+  {
+    "id": "haishijie-music-dinner",
+    "title": "海上世界 · 音乐餐吧",
+    "tags": ["t:bar", "v:fun", "p:haishijie", "x:music"]
+  },
+  {
+    "id": "haishijie-seaside-western",
+    "title": "海上世界 · 海边西餐",
+    "tags": ["t:food", "v:romantic", "p:haishijie", "x:seaside"]
+  },
+  {
+    "id": "mei-ktv",
+    "title": "魅 KTV",
+    "tags": ["t:ktv", "v:fun", "x:sing"]
+  },
+  {
+    "id": "bar-ratio",
+    "title": "Bar Ratio",
+    "tags": ["t:bar", "v:fun", "x:bar-ratio"]
+  },
+  {
+    "id": "shiyue-zhonggu",
+    "title": "拾月中古",
+    "tags": ["t:shopping", "v:cozy", "x:vintage"]
+  },
+  {
+    "id": "kuaile-xiaoka",
+    "title": "快乐小卡",
+    "tags": ["t:bar", "v:fun"]
+  },
+  {
+    "id": "why-not",
+    "title": "Why Not",
+    "tags": ["t:bar", "v:fun"]
+  },
+
+  {
+    "id": "drink-salty-lemon-gin-tonic",
+    "title": "咸柠金汤力",
+    "tags": ["t:drink", "v:fun", "x:gin-tonic", "x:salted-lemon"]
+  },
+  {
+    "id": "drink-banlan-pineapple",
+    "title": "斑斓菠萝",
+    "tags": ["t:drink", "v:fun", "x:pandan", "x:pineapple"]
+  },
+  {
+    "id": "drink-mujiangzi",
+    "title": "木姜子",
+    "tags": ["t:drink", "v:fun", "x:herbal"]
+  },
+  {
+    "id": "drink-baixiangguo",
+    "title": "百香果",
+    "tags": ["t:drink", "v:cozy", "x:passionfruit"]
+  },
+  {
+    "id": "xiang-gou",
+    "title": "咸狗",
+    "tags": ["t:drink", "v:fun", "x:salted-dog"]
   }
 ]
