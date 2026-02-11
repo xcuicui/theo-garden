@@ -86,5 +86,61 @@
     "id": "f518-cafe-orange-latte",
     "title": "F518 创意园 · 喝咖啡（热橙风味拿铁）",
     "tags": ["t:cafe", "p:f518", "v:cozy", "x:orange-latte"]
+  },
+
+  {
+    "id": "bread-and-coffee",
+    "title": "买面包和咖啡",
+    "tags": ["t:shopping", "c:indoor", "v:cozy", "x:daily"]
+  },
+  {
+    "id": "massage",
+    "title": "按摩",
+    "tags": ["t:massage", "c:indoor", "v:healing"]
+  },
+  {
+    "id": "tangquan",
+    "title": "汤泉",
+    "tags": ["t:spa", "c:indoor", "v:healing"]
+  },
+  {
+    "id": "shopping-laifushi",
+    "title": "逛商场 · 来福士",
+    "tags": ["t:shopping", "c:indoor", "p:laifushi", "v:cozy"]
+  },
+  {
+    "id": "shopping-haiancheng",
+    "title": "逛商场 · 海岸城",
+    "tags": ["t:shopping", "c:indoor", "p:haiancheng", "v:cozy"]
+  },
+  {
+    "id": "gym",
+    "title": "一起去健身房健身运动",
+    "tags": ["t:gym", "c:indoor", "v:challenge"]
+  },
+  {
+    "id": "daxuecheng-library-cafe",
+    "title": "大学城图书馆 · 看书喝咖啡",
+    "tags": ["t:library", "c:indoor", "p:daxuecheng", "v:cozy", "x:cafe"]
+  },
+  {
+    "id": "daxuecheng-walk-campus",
+    "title": "大学城 · 逛校园",
+    "tags": ["t:walk", "p:daxuecheng", "c:outdoor", "v:cozy"]
+  },
+  {
+    "id": "daxuecheng-food-canteen",
+    "title": "大学城 · 食堂干饭",
+    "tags": ["t:food", "p:daxuecheng", "c:indoor", "v:cozy"]
+  },
+  {
+    "id": "movie-knives-out-3",
+    "title": "利刃出鞘 3",
+    "tags": ["t:movie", "c:indoor", "v:cozy", "x:movie-knives-out-3"]
+  },
+  {
+    "id": "tv-modern-love",
+    "title": "Modern Love",
+    "tags": ["t:tv", "c:indoor", "v:cozy", "x:modern-love"]
   }
 ]
