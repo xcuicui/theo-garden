@@ -148,11 +148,16 @@
 
     <div class="card">
       <div class="meta">项目</div>
-      <div class="ideaTitle" id="ideaTitle">加载中…</div>
-      <div class="ideaTags" id="ideaTags"></div>
+
+      <label style="margin-top:10px;">标题</label>
+      <input id="titleInput" placeholder="例如：深圳湾公园 · 散步" style="box-sizing:border-box;margin-top:8px;width:100%;max-width:100%;border-radius:16px;border:1px solid rgba(31,102,227,0.16);padding:11px 12px;font-size:14px;outline:none;background:rgba(255,255,255,0.92);" />
+      <div class="meta" style="margin-top:8px;">ID：<span id="ideaId">-</span></div>
+
+      <div class="ideaTags" id="ideaTags" style="margin-top:10px;"></div>
 
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         <button class="pill" id="editTagsBtn" type="button">编辑标签</button>
+        <button class="pill" id="saveIdeaBtn" type="button">保存项目</button>
         <span class="meta" id="tagsHint" style="display:none;">点标签可删除；添加时会自动保证只有一个“类型”。</span>
       </div>
 
@@ -586,6 +591,10 @@
       const u = new URL(location.href);
       return u.searchParams.get('id') || '';
     }
+    function isNewMode(){
+      const u = new URL(location.href);
+      return u.searchParams.get('new') === '1' || !getIdeaId();
+    }
 
     let ideas = [];
     let curIdea = null;
@@ -752,14 +761,38 @@
       }
     }
 
-    async function saveIdeaTagsToNotes(){
+    function slugify(s){
+      return String(s||'')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9\u4e00-\u9fa5\-:_]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60);
+    }
+
+    async function saveIdeaToNotes(){
       if (!curIdea) return;
-      if (!getTTag(curIdea.tags)) {
-        toast('请先选一个“类型（t:）”');
-        return;
+      const title = String(document.getElementById('titleInput')?.value || '').trim();
+      if (!title) { toast('标题不能为空～'); return; }
+      curIdea.title = title;
+
+      if (!getTTag(curIdea.tags)) { toast('请先选一个“类型（t:）”'); return; }
+
+      // create id if needed
+      if (!curIdea.id) {
+        const base = slugify(title) || 'idea';
+        const stamp = new Date().toISOString().slice(0,10).replaceAll('-','');
+        let id = `${base}-${stamp}`;
+        // avoid collision in current list
+        const existing = new Set((ideas||[]).map(x => String(x.id)));
+        let k = 2;
+        while (existing.has(id)) { id = `${base}-${stamp}-${k++}`; }
+        curIdea.id = id;
       }
 
-      const btn = document.getElementById('saveTagsBtn');
+      const btn = document.getElementById('saveIdeaBtn');
       const old = btn ? btn.textContent : '';
       if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
 
@@ -769,25 +802,43 @@
         const txt = file.encoding === 'base64' ? b64ToUtf8(file.content) : '';
         const arr = JSON.parse(txt);
         if (!Array.isArray(arr)) throw new Error('ideas_not_array');
+
         const idx = arr.findIndex(x => String(x.id) === String(curIdea.id));
-        if (idx < 0) throw new Error('idea_not_found_in_notes_repo');
-        arr[idx].tags = curIdea.tags;
+        const payload = { id: curIdea.id, title: curIdea.title, tags: curIdea.tags };
+        if (idx >= 0) arr[idx] = payload;
+        else arr.unshift(payload);
 
         const out = JSON.stringify(arr, null, 2);
         const b64 = await base64Utf8(out);
-        await ghPutFile(GH_REPO_NOTES, 'dates/ideas.json', b64, `Update tags for ${curIdea.id}`, sha);
-        toast('标签已保存～');
+        await ghPutFile(GH_REPO_NOTES, 'dates/ideas.json', b64, `Upsert idea ${curIdea.id}`, sha);
+
+        // refresh local list
+        ideas = arr;
+        document.getElementById('ideaId').textContent = curIdea.id;
+        toast('项目已保存～');
+
+        // if we were in new mode, update URL to stable id
+        const u = new URL(location.href);
+        if (u.searchParams.get('new') === '1') {
+          u.searchParams.delete('new');
+          u.searchParams.set('id', curIdea.id);
+          history.replaceState(null, '', u.toString());
+        }
       } catch (e) {
         console.warn(e);
-        toast('保存失败：' + String(e).slice(0, 120));
+        toast('保存失败：' + String(e).slice(0, 180));
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = old || '保存'; }
+        if (btn) { btn.disabled = false; btn.textContent = old || '保存项目'; }
       }
     }
 
+    async function saveIdeaTagsToNotes(){
+      // kept for compatibility (calls saveIdeaToNotes)
+      return saveIdeaToNotes();
+    }
+
     async function loadIdeas(){
-      const r = await fetch('./ideas.json', { cache: 'no-store' });
-      const j = await r.json();
+      const j = await ghTryGetJson(GH_REPO_NOTES, 'dates/ideas.json');
       ideas = Array.isArray(j) ? j : [];
     }
 
@@ -955,21 +1006,30 @@
       if (!ok) return;
 
       await loadIdeas();
-      const id = getIdeaId();
-      curIdea = ideas.find(x => String(x.id) === String(id)) || null;
 
-      if (!curIdea) {
-        $('ideaTitle').textContent = '项目不存在或链接不对';
-        $('pageTitle').textContent = '约会日记';
-        $('ideaTags').innerHTML = '';
-        await loadLogsIndex();
-        await renderLogs();
-        return;
+      if (isNewMode()) {
+        curIdea = { id: '', title: '', tags: ['t:life', 'p:shenzhen', 'c:indoor', 'v:cozy'] };
+        $('pageTitle').textContent = '新建项目 · 约会日记';
+        document.getElementById('titleInput').value = '';
+        document.getElementById('ideaId').textContent = '（保存后生成）';
+        refreshIdeaTagsUI(false);
+      } else {
+        const id = getIdeaId();
+        curIdea = ideas.find(x => String(x.id) === String(id)) || null;
+        if (!curIdea) {
+          $('pageTitle').textContent = '约会日记';
+          document.getElementById('titleInput').value = '';
+          document.getElementById('ideaId').textContent = '-';
+          $('ideaTags').innerHTML = '';
+          toast('项目不存在或链接不对');
+          return;
+        }
+
+        $('pageTitle').textContent = `约会日记 · ${curIdea.title || curIdea.id}`;
+        document.getElementById('titleInput').value = curIdea.title || '';
+        document.getElementById('ideaId').textContent = curIdea.id || '-';
+        refreshIdeaTagsUI(false);
       }
-
-      $('pageTitle').textContent = `约会日记 · ${curIdea.title || curIdea.id}`;
-      $('ideaTitle').textContent = curIdea.title || curIdea.id;
-      refreshIdeaTagsUI(false);
 
       // tag editor bindings
       const editBtn = document.getElementById('editTagsBtn');
@@ -1002,10 +1062,19 @@
         input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); } });
       }
       const saveTagsBtn = document.getElementById('saveTagsBtn');
-      if (saveTagsBtn) saveTagsBtn.onclick = () => saveIdeaTagsToNotes();
+      if (saveTagsBtn) saveTagsBtn.onclick = () => saveIdeaToNotes();
 
-      await loadLogsIndex();
-      await renderLogs();
+      const saveIdeaBtn = document.getElementById('saveIdeaBtn');
+      if (saveIdeaBtn) saveIdeaBtn.onclick = () => saveIdeaToNotes();
+
+      // logs are only meaningful for existing ideas
+      if (curIdea && curIdea.id) {
+        await loadLogsIndex();
+        await renderLogs();
+      } else {
+        document.getElementById('logsTitle').textContent = '关联日记';
+        document.getElementById('logs').innerHTML = '<div class="meta">新建项目保存后，就可以开始写日记啦～</div>';
+      }
     })();
   </script>
 </body>
