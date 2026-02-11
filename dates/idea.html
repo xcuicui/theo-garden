@@ -173,7 +173,7 @@
           <button class="pill" id="saveTagsBtn" type="button">保存到清单</button>
         </div>
         <div class="meta" style="margin-top:10px; line-height:1.6;">
-          规则：每个项目必须有 1 个类型（t:），且只能有 1 个类型。点击“保存到清单”会更新 theo-garden 仓库里的 dates/ideas.json。
+          规则：每个项目必须有 1 个类型（t:），且只能有 1 个类型。点击“保存”会更新 theo-notes（私库）里的 dates/ideas.json。
         </div>
       </div>
     </div>
@@ -359,7 +359,6 @@
     let GH_TOKEN = '';
     const GH_OWNER = 'xcuicui';
     const GH_REPO_NOTES = 'theo-notes';
-    const GH_REPO_SITE = 'theo-garden';
 
     async function ensurePassAndToken(){
       const tryPass = async (p) => {
@@ -704,9 +703,8 @@
       }
     }
 
-    async function saveIdeaTagsToSite(){
+    async function saveIdeaTagsToNotes(){
       if (!curIdea) return;
-      // ensure t: exists
       if (!getTTag(curIdea.tags)) {
         toast('请先选一个“类型（t:）”');
         return;
@@ -717,23 +715,23 @@
       if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
 
       try {
-        const file = await ghGetFile(GH_REPO_SITE, 'dates/ideas.json');
+        const file = await ghGetFile(GH_REPO_NOTES, 'dates/ideas.json');
         const txt = file.encoding === 'base64' ? b64ToUtf8(file.content) : '';
         const arr = JSON.parse(txt);
         if (!Array.isArray(arr)) throw new Error('ideas_not_array');
         const idx = arr.findIndex(x => String(x.id) === String(curIdea.id));
-        if (idx < 0) throw new Error('idea_not_found_in_site_repo');
+        if (idx < 0) throw new Error('idea_not_found_in_notes_repo');
         arr[idx].tags = curIdea.tags;
 
         const out = JSON.stringify(arr, null, 2);
         const b64 = await base64Utf8(out);
-        await ghPutFile(GH_REPO_SITE, 'dates/ideas.json', b64, `Update tags for ${curIdea.id}`);
-        toast('标签已保存到清单～');
+        await ghPutFile(GH_REPO_NOTES, 'dates/ideas.json', b64, `Update tags for ${curIdea.id}`);
+        toast('标签已保存～');
       } catch (e) {
         console.warn(e);
         toast('保存失败：' + String(e).slice(0, 120));
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = old || '保存到清单'; }
+        if (btn) { btn.disabled = false; btn.textContent = old || '保存'; }
       }
     }
 
@@ -954,7 +952,7 @@
         input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); } });
       }
       const saveTagsBtn = document.getElementById('saveTagsBtn');
-      if (saveTagsBtn) saveTagsBtn.onclick = () => saveIdeaTagsToSite();
+      if (saveTagsBtn) saveTagsBtn.onclick = () => saveIdeaTagsToNotes();
 
       await loadLogsIndex();
       await renderLogs();

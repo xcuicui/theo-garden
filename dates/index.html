@@ -773,8 +773,18 @@
     }
 
     async function loadIdeas(){
-      const r = await fetch('./ideas.json', { cache: 'no-store' });
-      const j = await r.json();
+      // primary source: private repo theo-notes/dates/ideas.json
+      let j = null;
+      try {
+        j = await ghTryGetJson('dates/ideas.json');
+      } catch {}
+
+      // fallback: local file (in case token missing)
+      if (!j) {
+        const r = await fetch('./ideas.json', { cache: 'no-store' });
+        j = await r.json();
+      }
+
       ideas = Array.isArray(j) ? j : [];
       renderSelectedFilters();
       renderIdeas();
@@ -942,7 +952,9 @@
     };
 
     (async () => {
-      // list page no longer needs GitHub token; diary lives in idea.html
+      // need token to read ideas from private repo theo-notes
+      const ok = await ensurePassAndToken();
+      if (!ok) return;
       await loadIdeas();
     })();
   </script>
