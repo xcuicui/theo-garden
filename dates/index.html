@@ -72,6 +72,22 @@
     button.primary:disabled{opacity:0.6; cursor:not-allowed;}
 
     .meta{font-size:12px; color: rgba(0,0,0,0.48);}
+
+    .listHead{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+    .statLine{font-size:13px; color: rgba(0,0,0,0.60); font-weight:800; letter-spacing:0.2px;}
+    .actions{display:flex; gap:8px; align-items:center;}
+    button.iconBtn{
+      border: 1px solid rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.50);
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor:pointer;
+      box-shadow: none;
+      color: rgba(0,0,0,0.66);
+    }
+    button.iconBtn:hover{ background: rgba(255,255,255,0.70); }
+
     .ideaList{margin-top:10px; display:grid; gap:10px;}
     .groupTitle{font-weight:950; color: rgba(0,0,0,0.74); margin-top:8px;}
     .ideaBtn{
@@ -191,11 +207,14 @@
 
     <div class="grid">
       <div class="card">
-        <div class="meta">清单</div>
-        <div class="pillRow" style="margin-top:10px;">
-          <span class="pill" id="stat"></span>
-          <button class="pill" id="reloadIdeas">刷新</button>
-          <button class="pill" id="clearFilters" style="display:none;">清空筛选</button>
+        <div class="listHead" style="margin-top:6px;">
+          <div class="statLine">
+            <span id="stat"></span>
+          </div>
+          <div class="actions">
+            <button class="iconBtn" id="reloadIdeas" type="button" title="刷新">刷新</button>
+            <button class="iconBtn" id="clearFilters" type="button" style="display:none;" title="清空筛选">清空</button>
+          </div>
         </div>
         <div class="pillRow" id="selectedFilters" style="margin-top:10px; display:none;"></div>
 
@@ -209,7 +228,7 @@
         </div>
 
         <div class="ideaList" id="ideaList"></div>
-        <div class="meta" style="margin-top:10px;">提示：当前 ideas.json 先放了一个示例项；你把截图里的清单整理进 ideas.json 就能全部显示。</div>
+        <!-- hint removed: ideas now come from private theo-notes -->
       </div>
 
       <div class="card">
