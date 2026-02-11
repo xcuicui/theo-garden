@@ -410,6 +410,7 @@
     async function ghFetch(repo, path, opts = {}){
       const url = `https://api.github.com${path}`;
       const res = await fetch(url, {
+        cache: 'no-store',
         ...opts,
         headers: {
           'authorization': `Bearer ${GH_TOKEN}`,
@@ -428,6 +429,7 @@
     async function ghFetchBlob(repo, path, opts = {}){
       const url = `https://api.github.com${path}`;
       const res = await fetch(url, {
+        cache: 'no-store',
         ...opts,
         headers: {
           'authorization': `Bearer ${GH_TOKEN}`,
@@ -471,13 +473,15 @@
       return btoa(bin);
     }
 
-    async function ghPutFile(repo, path, contentBase64, message){
+    async function ghPutFile(repo, path, contentBase64, message, shaOverride){
       const url = `/repos/${GH_OWNER}/${repo}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}?ref=main`;
-      let sha;
-      try {
-        const j = await ghFetch(repo, url);
-        sha = j && j.sha;
-      } catch {}
+      let sha = shaOverride;
+      if (!sha) {
+        try {
+          const j = await ghFetch(repo, url);
+          sha = j && j.sha;
+        } catch {}
+      }
 
       const putUrl = `/repos/${GH_OWNER}/${repo}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}`;
       return ghFetch(repo, putUrl, {
@@ -716,6 +720,7 @@
 
       try {
         const file = await ghGetFile(GH_REPO_NOTES, 'dates/ideas.json');
+        const sha = file && file.sha;
         const txt = file.encoding === 'base64' ? b64ToUtf8(file.content) : '';
         const arr = JSON.parse(txt);
         if (!Array.isArray(arr)) throw new Error('ideas_not_array');
@@ -725,7 +730,7 @@
 
         const out = JSON.stringify(arr, null, 2);
         const b64 = await base64Utf8(out);
-        await ghPutFile(GH_REPO_NOTES, 'dates/ideas.json', b64, `Update tags for ${curIdea.id}`);
+        await ghPutFile(GH_REPO_NOTES, 'dates/ideas.json', b64, `Update tags for ${curIdea.id}`, sha);
         toast('标签已保存～');
       } catch (e) {
         console.warn(e);
