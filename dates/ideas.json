@@ -1,7 +1,90 @@
 [
   {
-    "id": "sample-shenzhen-bay-walk",
+    "id": "shenzhen-bay-park-picnic-sunrise-theater",
+    "title": "日出剧场 · 野餐",
+    "tags": ["t:picnic", "p:shenzhen-bay-park", "c:outdoor", "v:romantic", "v:photo", "x:sunrise"]
+  },
+
+  {
+    "id": "shenzhen-bay-park-bike",
+    "title": "深圳湾公园 · 骑车",
+    "tags": ["t:bike", "p:shenzhen-bay-park", "c:outdoor", "v:fun"]
+  },
+  {
+    "id": "shenzhen-bay-park-walk",
     "title": "深圳湾公园 · 散步",
     "tags": ["t:walk", "p:shenzhen-bay-park", "c:outdoor", "v:cozy"]
+  },
+  {
+    "id": "shenzhen-bay-park-cafe-tenritan-qianniaoshuba",
+    "title": "深圳湾公园 · 十日谈/千鸟书吧喝咖啡",
+    "tags": ["t:cafe", "p:shenzhen-bay-park", "c:outdoor", "v:cozy", "v:photo", "x:sunset", "x:birdwatch"]
+  },
+
+  {
+    "id": "qiedao-walk",
+    "title": "企鹅岛 · 散步",
+    "tags": ["t:walk", "p:qiedao", "c:outdoor", "v:fun"]
+  },
+  {
+    "id": "qiedao-bike",
+    "title": "企鹅岛 · 骑车",
+    "tags": ["t:bike", "p:qiedao", "c:outdoor", "v:fun"]
+  },
+  {
+    "id": "qiedao-run-early",
+    "title": "企鹅岛 · 早起跑步",
+    "tags": ["t:run", "p:qiedao", "c:outdoor", "x:early"]
+  },
+  {
+    "id": "qiedao-run-night",
+    "title": "企鹅岛 · 夜跑",
+    "tags": ["t:run", "p:qiedao", "c:outdoor", "x:night"]
+  },
+
+  {
+    "id": "xiwan-hongshulin-sunset",
+    "title": "西湾红树林 · 看日落",
+    "tags": ["t:walk", "p:xiwan-hongshulin", "c:outdoor", "v:romantic", "v:photo", "x:sunset"]
+  },
+
+  {
+    "id": "denghui",
+    "title": "灯会",
+    "tags": ["t:festival", "c:outdoor", "v:fun", "v:photo"]
+  },
+
+  {
+    "id": "huanle-gangwan-ferris-wheel",
+    "title": "欢乐港湾 · 摩天轮看城景",
+    "tags": ["t:viewpoint", "p:huanle-gangwan", "c:outdoor", "v:romantic", "v:photo", "x:nightview"]
+  },
+  {
+    "id": "huanle-gangwan-walk-nightview",
+    "title": "欢乐港湾 · 散步看夜景",
+    "tags": ["t:walk", "p:huanle-gangwan", "c:outdoor", "v:cozy", "x:nightview"]
+  },
+
+  {
+    "id": "supermarket-snacks-breakfast",
+    "title": "逛超市买零食/早餐",
+    "tags": ["t:shopping", "c:indoor", "v:cozy", "x:daily"]
+  },
+
+  {
+    "id": "dafen-youhua",
+    "title": "大芬油画村 · 画油画",
+    "tags": ["t:art", "p:dafen-youhuacun", "c:indoor", "v:healing", "v:cozy"]
+  },
+
+  {
+    "id": "f518-photo-checkin",
+    "title": "F518 创意园 · 拍照打卡",
+    "tags": ["t:photo", "p:f518", "c:outdoor", "v:photo"]
+  },
+  {
+    "id": "f518-cafe-orange-latte",
+    "title": "F518 创意园 · 喝咖啡（热橙风味拿铁）",
+    "tags": ["t:cafe", "p:f518", "v:cozy", "x:orange-latte"]
   }
 ]
