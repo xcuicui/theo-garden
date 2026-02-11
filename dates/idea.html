@@ -61,6 +61,7 @@
       text-decoration:none;
       display:inline-block;
     }
+    .pill{padding: 8px 10px; border-radius:999px; border:1px solid rgba(31,102,227,0.14); background: rgba(255,255,255,0.74); font-size: 13px;}
     button.primary{
       background: linear-gradient(135deg, #0b2a78, #5aa7ff);
       color:#fff;
@@ -149,6 +150,32 @@
       <div class="meta">项目</div>
       <div class="ideaTitle" id="ideaTitle">加载中…</div>
       <div class="ideaTags" id="ideaTags"></div>
+
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button class="pill" id="editTagsBtn" type="button">编辑标签</button>
+        <span class="meta" id="tagsHint" style="display:none;">点标签可删除；添加时会自动保证只有一个“类型”。</span>
+      </div>
+
+      <div id="tagEditor" style="display:none; margin-top:12px;">
+        <div class="pillRow" style="gap:8px;">
+          <button class="pill" id="addType_t" type="button">类型</button>
+          <button class="pill" id="addType_v" type="button">氛围</button>
+          <button class="pill" id="addType_c" type="button">约束</button>
+          <button class="pill" id="addType_p" type="button">地点</button>
+          <button class="pill" id="addType_x" type="button">其它</button>
+        </div>
+
+        <div class="pillRow" id="quickTags" style="margin-top:10px;"></div>
+
+        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+          <input id="newTag" placeholder="例如：v:romantic / p:shenzhen-bay-park" style="flex:1; min-width: 240px; box-sizing:border-box;border-radius:16px;border:1px solid rgba(31,102,227,0.16);padding:11px 12px;font-size:14px;outline:none;background:rgba(255,255,255,0.92);" />
+          <button class="pill" id="addTagBtn" type="button">添加</button>
+          <button class="pill" id="saveTagsBtn" type="button">保存到清单</button>
+        </div>
+        <div class="meta" style="margin-top:10px; line-height:1.6;">
+          规则：每个项目必须有 1 个类型（t:），且只能有 1 个类型。点击“保存到清单”会更新 theo-garden 仓库里的 dates/ideas.json。
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -254,11 +281,15 @@
       const idx = key.indexOf(':');
       return idx > 0 ? key.slice(idx+1) : key;
     }
-    function renderTags(el, tags){
+    function renderTags(el, tags, clickable = false){
       const arr = Array.isArray(tags) ? tags : [];
       const order = { t:0, v:1, c:2, p:3, x:4 };
       const sorted = arr.slice().sort((a,b)=> (order[tagType(a)]??9) - (order[tagType(b)]??9));
-      el.innerHTML = sorted.map(t => `<span class="tag ${tagType(t)}" title="${escapeHtml(t)}">${escapeHtml(tagLabel(t))}</span>`).join('');
+      el.innerHTML = sorted.map(t => {
+        const data = clickable ? ` data-tag="${escapeHtml(t)}"` : '';
+        const ttl = clickable ? '点击删除' : escapeHtml(t);
+        return `<span class="tag ${tagType(t)}"${data} title="${ttl}">${escapeHtml(tagLabel(t))}</span>`;
+      }).join('');
     }
 
     // --- Token gate (same as /notes/ & old /dates/) ---
@@ -327,7 +358,8 @@
 
     let GH_TOKEN = '';
     const GH_OWNER = 'xcuicui';
-    const GH_REPO = 'theo-notes';
+    const GH_REPO_NOTES = 'theo-notes';
+    const GH_REPO_SITE = 'theo-garden';
 
     async function ensurePassAndToken(){
       const tryPass = async (p) => {
@@ -376,7 +408,7 @@
     }
 
     // --- GitHub API helpers ---
-    async function ghFetch(path, opts = {}){
+    async function ghFetch(repo, path, opts = {}){
       const url = `https://api.github.com${path}`;
       const res = await fetch(url, {
         ...opts,
@@ -394,7 +426,7 @@
       return res.json();
     }
 
-    async function ghFetchBlob(path, opts = {}){
+    async function ghFetchBlob(repo, path, opts = {}){
       const url = `https://api.github.com${path}`;
       const res = await fetch(url, {
         ...opts,
@@ -412,9 +444,9 @@
       return res.blob();
     }
 
-    async function ghGetFile(repoPath){
+    async function ghGetFile(repo, repoPath){
       const enc = repoPath.split('/').map(encodeURIComponent).join('/');
-      return ghFetch(`/repos/${encodeURIComponent(GH_OWNER)}/${encodeURIComponent(GH_REPO)}/contents/${enc}?ref=main`);
+      return ghFetch(repo, `/repos/${encodeURIComponent(GH_OWNER)}/${encodeURIComponent(repo)}/contents/${enc}?ref=main`);
     }
 
     function b64ToUtf8(b64){
@@ -423,9 +455,9 @@
       return new TextDecoder('utf-8').decode(bytes);
     }
 
-    async function ghTryGetJson(path){
+    async function ghTryGetJson(repo, path){
       try {
-        const f = await ghGetFile(path);
+        const f = await ghGetFile(repo, path);
         const txt = f.encoding === 'base64' ? b64ToUtf8(f.content) : '';
         return JSON.parse(txt);
       } catch {
@@ -440,16 +472,16 @@
       return btoa(bin);
     }
 
-    async function ghPutFile(path, contentBase64, message){
-      const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}?ref=main`;
+    async function ghPutFile(repo, path, contentBase64, message){
+      const url = `/repos/${GH_OWNER}/${repo}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}?ref=main`;
       let sha;
       try {
-        const j = await ghFetch(url);
+        const j = await ghFetch(repo, url);
         sha = j && j.sha;
       } catch {}
 
-      const putUrl = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}`;
-      return ghFetch(putUrl, {
+      const putUrl = `/repos/${GH_OWNER}/${repo}/contents/${encodeURIComponent(path).replaceAll('%2F','/')}`;
+      return ghFetch(repo, putUrl, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ message, content: contentBase64, branch: 'main', sha }),
@@ -462,7 +494,7 @@
       if (!key) return '';
       if (__imgUrlCache.has(key)) return __imgUrlCache.get(key);
       const enc = key.split('/').map(encodeURIComponent).join('/');
-      const blob = await ghFetchBlob(`/repos/${encodeURIComponent(GH_OWNER)}/${encodeURIComponent(GH_REPO)}/contents/${enc}?ref=main`);
+      const blob = await ghFetchBlob(GH_REPO_NOTES, `/repos/${encodeURIComponent(GH_OWNER)}/${encodeURIComponent(GH_REPO_NOTES)}/contents/${enc}?ref=main`);
       const url = URL.createObjectURL(blob);
       __imgUrlCache.set(key, url);
       return url;
@@ -556,6 +588,155 @@
     let curIdea = null;
     let logsIndex = { items: [] };
 
+    // --- tag editor ---
+    let activeAddType = 'v';
+    const QUICK = {
+      t: [
+        ['t:outdoor','户外'],
+        ['t:food','吃喝'],
+        ['t:life','室内/日常'],
+        ['t:nightlife','夜生活'],
+        ['t:culture','文化/手作'],
+        ['t:watch','观影/追剧'],
+      ],
+      v: [
+        ['v:cozy','舒服/松弛'],
+        ['v:fun','热闹/好玩'],
+        ['v:romantic','浪漫'],
+        ['v:healing','治愈/放松'],
+        ['v:photo','出片'],
+        ['v:challenge','挑战/运动'],
+      ],
+      c: [
+        ['c:indoor','室内'],
+        ['c:outdoor','室外'],
+      ],
+      p: [
+        ['p:shenzhen','深圳'],
+        ['p:guangzhou','广州'],
+        ['p:shenzhen-bay-park','深圳湾公园'],
+        ['p:haishijie','海上世界'],
+        ['p:nantou-gucheng','南头古城'],
+        ['p:huanle-gangwan','欢乐港湾'],
+      ],
+      x: [
+        ['x:sunset','日落'],
+        ['x:sunrise','日出'],
+        ['x:nightview','夜景'],
+        ['x:daily','日常'],
+      ]
+    };
+
+    function normalizeTagInput(s){
+      return String(s||'').trim();
+    }
+
+    function getTTag(tags){
+      const arr = Array.isArray(tags) ? tags : [];
+      return arr.find(t => /^t:/.test(t)) || '';
+    }
+
+    function setActiveAddType(t){
+      activeAddType = t;
+      ['t','v','c','p','x'].forEach(k => {
+        const el = document.getElementById('addType_' + k);
+        if (el) el.style.outline = (k===t) ? '3px solid rgba(11,42,120,0.18)' : 'none';
+      });
+      renderQuickTags();
+    }
+
+    function renderQuickTags(){
+      const box = document.getElementById('quickTags');
+      if (!box) return;
+      const items = QUICK[activeAddType] || [];
+      box.innerHTML = items.map(([tag, label]) => {
+        return `<button class="pill" type="button" data-tag="${escapeHtml(tag)}">+ ${escapeHtml(label)}</button>`;
+      }).join('');
+      box.querySelectorAll('button[data-tag]').forEach(b => {
+        b.onclick = () => addTagToIdea(b.getAttribute('data-tag') || '');
+      });
+    }
+
+    function addTagToIdea(tag){
+      if (!curIdea) return;
+      tag = normalizeTagInput(tag);
+      if (!tag) return;
+      curIdea.tags = Array.isArray(curIdea.tags) ? curIdea.tags : [];
+
+      // enforce: only one t:
+      if (/^t:/.test(tag)) {
+        curIdea.tags = curIdea.tags.filter(x => !/^t:/.test(x));
+        curIdea.tags.unshift(tag);
+      } else {
+        if (!curIdea.tags.includes(tag)) curIdea.tags.push(tag);
+      }
+
+      refreshIdeaTagsUI(true);
+    }
+
+    function removeTagFromIdea(tag){
+      if (!curIdea) return;
+      curIdea.tags = Array.isArray(curIdea.tags) ? curIdea.tags : [];
+      if (/^t:/.test(tag)) {
+        // must keep one t:
+        const t0 = getTTag(curIdea.tags);
+        if (t0 && t0 === tag) {
+          toast('类型（t:）必须保留 1 个～');
+          return;
+        }
+      }
+      curIdea.tags = curIdea.tags.filter(x => x !== tag);
+      refreshIdeaTagsUI(true);
+    }
+
+    function refreshIdeaTagsUI(clickable){
+      const tagsEl = document.getElementById('ideaTags');
+      if (!tagsEl) return;
+      renderTags(tagsEl, curIdea ? (curIdea.tags||[]) : [], clickable);
+      if (clickable) {
+        tagsEl.querySelectorAll('.tag[data-tag]').forEach(el => {
+          el.onclick = (e) => {
+            e.preventDefault();
+            const t = el.getAttribute('data-tag') || '';
+            removeTagFromIdea(t);
+          };
+        });
+      }
+    }
+
+    async function saveIdeaTagsToSite(){
+      if (!curIdea) return;
+      // ensure t: exists
+      if (!getTTag(curIdea.tags)) {
+        toast('请先选一个“类型（t:）”');
+        return;
+      }
+
+      const btn = document.getElementById('saveTagsBtn');
+      const old = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+
+      try {
+        const file = await ghGetFile(GH_REPO_SITE, 'dates/ideas.json');
+        const txt = file.encoding === 'base64' ? b64ToUtf8(file.content) : '';
+        const arr = JSON.parse(txt);
+        if (!Array.isArray(arr)) throw new Error('ideas_not_array');
+        const idx = arr.findIndex(x => String(x.id) === String(curIdea.id));
+        if (idx < 0) throw new Error('idea_not_found_in_site_repo');
+        arr[idx].tags = curIdea.tags;
+
+        const out = JSON.stringify(arr, null, 2);
+        const b64 = await base64Utf8(out);
+        await ghPutFile(GH_REPO_SITE, 'dates/ideas.json', b64, `Update tags for ${curIdea.id}`);
+        toast('标签已保存到清单～');
+      } catch (e) {
+        console.warn(e);
+        toast('保存失败：' + String(e).slice(0, 120));
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = old || '保存到清单'; }
+      }
+    }
+
     async function loadIdeas(){
       const r = await fetch('./ideas.json', { cache: 'no-store' });
       const j = await r.json();
@@ -563,7 +744,7 @@
     }
 
     async function loadLogsIndex(){
-      const idx = await ghTryGetJson('dates/index.json');
+      const idx = await ghTryGetJson(GH_REPO_NOTES, 'dates/index.json');
       logsIndex = (idx && typeof idx === 'object') ? idx : { items: [] };
       logsIndex.items = Array.isArray(logsIndex.items) ? logsIndex.items : [];
     }
@@ -688,21 +869,21 @@
           const payload = await imageToUploadPayload(files[i]);
           const path = `${dayDir}/images/${stamp}-${i+1}.${payload.ext}`;
           imgPaths.push(path);
-          await ghPutFile(path, payload.b64, `Add date photo ${day} ${stamp} #${i+1}`);
+          await ghPutFile(GH_REPO_NOTES, path, payload.b64, `Add date photo ${day} ${stamp} #${i+1}`);
         }
 
         const dailyPath = `${dayDir}/entries.json`;
-        const daily = (await ghTryGetJson(dailyPath)) || { day, items: [] };
+        const daily = (await ghTryGetJson(GH_REPO_NOTES, dailyPath)) || { day, items: [] };
         daily.items = Array.isArray(daily.items) ? daily.items : [];
         daily.items.unshift({ ts, ideaIds: [curIdea.id], text, images: imgPaths, author });
-        await ghPutFile(dailyPath, await base64Utf8(JSON.stringify(daily, null, 2)), `Update date entries ${day}`);
+        await ghPutFile(GH_REPO_NOTES, dailyPath, await base64Utf8(JSON.stringify(daily, null, 2)), `Update date entries ${day}`);
 
         const idxPath = 'dates/index.json';
-        const idx = (await ghTryGetJson(idxPath)) || { items: [] };
+        const idx = (await ghTryGetJson(GH_REPO_NOTES, idxPath)) || { items: [] };
         idx.items = Array.isArray(idx.items) ? idx.items : [];
         idx.items.unshift({ ts, day, ideaIds: [curIdea.id], text, images: imgPaths, author });
         idx.items = idx.items.slice(0, 400);
-        await ghPutFile(idxPath, await base64Utf8(JSON.stringify(idx, null, 2)), `Update dates index ${day}`);
+        await ghPutFile(GH_REPO_NOTES, idxPath, await base64Utf8(JSON.stringify(idx, null, 2)), `Update dates index ${day}`);
 
         logsIndex = idx;
         $('text').value = '';
@@ -740,7 +921,40 @@
 
       $('pageTitle').textContent = `约会日记 · ${curIdea.title || curIdea.id}`;
       $('ideaTitle').textContent = curIdea.title || curIdea.id;
-      renderTags($('ideaTags'), curIdea.tags || []);
+      refreshIdeaTagsUI(false);
+
+      // tag editor bindings
+      const editBtn = document.getElementById('editTagsBtn');
+      const editor = document.getElementById('tagEditor');
+      const hint = document.getElementById('tagsHint');
+      if (editBtn && editor) {
+        editBtn.onclick = () => {
+          const on = editor.style.display !== 'none';
+          editor.style.display = on ? 'none' : 'block';
+          if (hint) hint.style.display = on ? 'none' : 'inline';
+          editBtn.textContent = on ? '编辑标签' : '完成';
+          refreshIdeaTagsUI(!on);
+          if (!on) {
+            setActiveAddType(activeAddType || 'v');
+          }
+        };
+      }
+
+      ['t','v','c','p','x'].forEach(k => {
+        const b = document.getElementById('addType_' + k);
+        if (b) b.onclick = () => setActiveAddType(k);
+      });
+      const addBtn = document.getElementById('addTagBtn');
+      const input = document.getElementById('newTag');
+      if (addBtn && input) {
+        addBtn.onclick = () => {
+          addTagToIdea(input.value);
+          input.value = '';
+        };
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); } });
+      }
+      const saveTagsBtn = document.getElementById('saveTagsBtn');
+      if (saveTagsBtn) saveTagsBtn.onclick = () => saveIdeaTagsToSite();
 
       await loadLogsIndex();
       await renderLogs();
