@@ -172,6 +172,16 @@
           <button class="pill" id="clearFilters" style="display:none;">清空筛选</button>
         </div>
         <div class="pillRow" id="selectedFilters" style="margin-top:10px; display:none;"></div>
+
+        <div class="pillRow" id="groupTypeBar" style="margin-top:10px;">
+          <span class="meta" style="margin-right:6px;">按标签分类：</span>
+          <button class="pill" id="group_t">类型</button>
+          <button class="pill" id="group_v">氛围</button>
+          <button class="pill" id="group_c">约束</button>
+          <button class="pill" id="group_p">地点</button>
+          <button class="pill" id="group_none">不分类</button>
+        </div>
+
         <div class="ideaList" id="ideaList"></div>
         <div class="meta" style="margin-top:10px;">提示：当前 ideas.json 先放了一个示例项；你把截图里的清单整理进 ideas.json 就能全部显示。</div>
       </div>
@@ -571,6 +581,11 @@
 
     // tag filter state (AND)
     const selectedTags = new Set();
+
+    // group-by-tag-type view state
+    // '' => no grouping, otherwise one of: t/v/c/p
+    let activeGroupType = '';
+    const collapsedGroups = new Set(); // key: `${type}:${tag}`
     function hasTag(it, tag){
       return Array.isArray(it.tags) && it.tags.includes(tag);
     }
@@ -642,67 +657,95 @@
       return out;
     }
 
+    function renderIdeaButton(it){
+      const btn = document.createElement('button');
+      btn.className = 'ideaBtn' + (curIdea && curIdea.id === it.id ? ' sel' : '');
+      btn.type = 'button';
+      const tagsHtml = (Array.isArray(it.tags) && it.tags.length) ? renderTagsHtml(it.tags) : '';
+      btn.innerHTML = `<div class="ideaTitle">${escapeHtml(it.title || it.id)}</div>` + (tagsHtml ? `<div class="ideaTags">${tagsHtml}</div>` : '');
+
+      // tag click => filter
+      btn.querySelectorAll('.tag[data-tag]').forEach(tel => {
+        tel.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const t = tel.getAttribute('data-tag') || '';
+          addFilter(t);
+        });
+      });
+
+      btn.onclick = () => {
+        curIdea = it;
+        $('curIdeaTitle').textContent = it.title || it.id;
+        renderIdeas();
+        renderLogs();
+      };
+      return btn;
+    }
+
     function renderIdeas(){
       const el = $('ideaList');
       el.innerHTML = '';
 
       const total = ideas.length;
       const filtered = ideas.filter(matchSelected);
-      const g = groupIdeas(filtered);
       const n = filtered.length;
       $('stat').textContent = selectedTags.size ? `筛选后 ${n} / ${total} 项` : `共 ${total} 项`;
 
-      const cats = Array.from(g.keys());
-      // stable order
-      const order = ['outdoor','indoor','food','nightlife','play','other'];
-      cats.sort((a,b) => order.indexOf(a) - order.indexOf(b));
+      // no grouping
+      if (!activeGroupType) {
+        const items = filtered.slice().sort((a,b) => String(a.title||'').localeCompare(String(b.title||''), 'zh-CN'));
+        for (const it of items) el.appendChild(renderIdeaButton(it));
+        return;
+      }
 
-      for (const cat of cats) {
-        const catTitle = document.createElement('div');
-        catTitle.className = 'groupTitle';
-        catTitle.textContent = CATEGORY_LABEL[cat] || cat;
-        el.appendChild(catTitle);
-
-        const groups = g.get(cat);
-        const groupKeys = Array.from(groups.keys()).sort((a,b) => String(a).localeCompare(String(b), 'zh-CN'));
-        for (const grp of groupKeys) {
-          if (grp) {
-            const gt = document.createElement('div');
-            gt.className = 'meta';
-            gt.style.marginTop = '6px';
-            gt.textContent = grp;
-            el.appendChild(gt);
-          }
-
-          const items = groups.get(grp);
-          items.sort((a,b) => String(a.title||'').localeCompare(String(b.title||''), 'zh-CN'));
-
-          for (const it of items) {
-            const btn = document.createElement('button');
-            btn.className = 'ideaBtn' + (curIdea && curIdea.id === it.id ? ' sel' : '');
-            btn.type = 'button';
-            const tagsHtml = (Array.isArray(it.tags) && it.tags.length) ? renderTagsHtml(it.tags) : '';
-            btn.innerHTML = `<div class="ideaTitle">${escapeHtml(it.title || it.id)}</div>` + (tagsHtml ? `<div class="ideaTags">${tagsHtml}</div>` : '');
-            // tag click => filter
-            btn.querySelectorAll('.tag[data-tag]').forEach(tel => {
-              tel.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const t = tel.getAttribute('data-tag') || '';
-                addFilter(t);
-              });
-            });
-
-            btn.onclick = () => {
-              curIdea = it;
-              $('curIdeaTitle').textContent = it.title || it.id;
-              // re-render selection highlights cheaply
-              renderIdeas();
-              renderLogs();
-            };
-            el.appendChild(btn);
-          }
+      // group by tag type (t/v/c/p)
+      const groups = new Map(); // tag -> items
+      for (const it of filtered) {
+        const tags = Array.isArray(it.tags) ? it.tags : [];
+        const ts = tags.filter(x => tagType(x) === activeGroupType);
+        // if item has no tag of that type, drop into an "other" bucket
+        const keys = ts.length ? ts : [`${activeGroupType}:__none__`];
+        for (const k of keys) {
+          if (!groups.has(k)) groups.set(k, []);
+          groups.get(k).push(it);
         }
+      }
+
+      const groupKeys = Array.from(groups.keys()).sort((a,b) => {
+        // keep __none__ last
+        const an = String(a).includes('__none__');
+        const bn = String(b).includes('__none__');
+        if (an !== bn) return an ? 1 : -1;
+        return String(tagLabel(a)).localeCompare(String(tagLabel(b)), 'zh-CN');
+      });
+
+      for (const k of groupKeys) {
+        const items = groups.get(k) || [];
+        items.sort((a,b) => String(a.title||'').localeCompare(String(b.title||''), 'zh-CN'));
+
+        const isNone = String(k).includes('__none__');
+        const title = isNone ? '（未标注）' : tagLabel(k);
+        const key2 = `${activeGroupType}:${k}`;
+        const collapsed = collapsedGroups.has(key2);
+
+        const header = document.createElement('button');
+        header.type = 'button';
+        header.className = 'ideaBtn';
+        header.style.display = 'flex';
+        header.style.alignItems = 'center';
+        header.style.justifyContent = 'space-between';
+        header.style.gap = '10px';
+        header.innerHTML = `<div style="font-weight:950;">${escapeHtml(title)}</div><div class="meta">${items.length} 项 · ${collapsed ? '展开' : '收起'}</div>`;
+        header.onclick = () => {
+          if (collapsedGroups.has(key2)) collapsedGroups.delete(key2);
+          else collapsedGroups.add(key2);
+          renderIdeas();
+        };
+        el.appendChild(header);
+
+        if (collapsed) continue;
+        for (const it of items) el.appendChild(renderIdeaButton(it));
       }
     }
 
@@ -871,8 +914,30 @@
       }
     }
 
+    function setGroupType(t){
+      activeGroupType = t || '';
+      // reset collapse state when switching
+      collapsedGroups.clear();
+      // update button styles (simple selected outline)
+      ['t','v','c','p','none'].forEach(k => {
+        const id = k==='none' ? 'group_none' : ('group_' + k);
+        const el = $(id);
+        if (!el) return;
+        const on = (k==='none' ? !activeGroupType : activeGroupType===k);
+        el.style.outline = on ? '3px solid rgba(11,42,120,0.18)' : 'none';
+      });
+      renderIdeas();
+    }
+
     $('reloadIdeas').onclick = () => loadIdeas();
     $('clearFilters').onclick = () => clearFilters();
+
+    // group type buttons
+    $('group_t').onclick = () => setGroupType('t');
+    $('group_v').onclick = () => setGroupType('v');
+    $('group_c').onclick = () => setGroupType('c');
+    $('group_p').onclick = () => setGroupType('p');
+    $('group_none').onclick = () => setGroupType('');
 
     $('save').onclick = async () => {
       if (!curIdea) { toast('先选一项约会～'); return; }
