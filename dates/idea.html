@@ -630,6 +630,28 @@
       ]
     };
 
+    // Keep a small per-type recent tag list, so newly added tags appear as options next time.
+    const RECENT_KEY = 'theo_dates_recent_tags_v1';
+    function loadRecent(){
+      try {
+        const j = JSON.parse(localStorage.getItem(RECENT_KEY) || '{}');
+        return (j && typeof j === 'object') ? j : {};
+      } catch {
+        return {};
+      }
+    }
+    function saveRecent(obj){
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(obj || {})); } catch {}
+    }
+    function rememberTag(tag){
+      const ty = tagType(tag);
+      const rec = loadRecent();
+      const arr = Array.isArray(rec[ty]) ? rec[ty] : [];
+      const next = [tag, ...arr.filter(x => x !== tag)].slice(0, 14);
+      rec[ty] = next;
+      saveRecent(rec);
+    }
+
     function normalizeTagInput(s){
       return String(s||'').trim();
     }
@@ -651,10 +673,29 @@
     function renderQuickTags(){
       const box = document.getElementById('quickTags');
       if (!box) return;
-      const items = QUICK[activeAddType] || [];
-      box.innerHTML = items.map(([tag, label]) => {
+
+      const base = QUICK[activeAddType] || [];
+      const rec = loadRecent();
+      const recent = Array.isArray(rec[activeAddType]) ? rec[activeAddType] : [];
+
+      // merge base + recent (dedupe by tag)
+      const seen = new Set();
+      const merged = [];
+      for (const [tag, label] of base) {
+        if (seen.has(tag)) continue;
+        seen.add(tag);
+        merged.push({ tag, label });
+      }
+      for (const tag of recent) {
+        if (seen.has(tag)) continue;
+        seen.add(tag);
+        merged.push({ tag, label: tagLabel(tag) });
+      }
+
+      box.innerHTML = merged.map(({tag, label}) => {
         return `<button class="pill" type="button" data-tag="${escapeHtml(tag)}">+ ${escapeHtml(label)}</button>`;
       }).join('');
+
       box.querySelectorAll('button[data-tag]').forEach(b => {
         b.onclick = () => addTagToIdea(b.getAttribute('data-tag') || '');
       });
@@ -674,6 +715,9 @@
         if (!curIdea.tags.includes(tag)) curIdea.tags.push(tag);
       }
 
+      rememberTag(tag);
+      // refresh quick options so newly added tags appear as buttons
+      renderQuickTags();
       refreshIdeaTagsUI(true);
     }
 
@@ -689,6 +733,7 @@
         }
       }
       curIdea.tags = curIdea.tags.filter(x => x !== tag);
+      renderQuickTags();
       refreshIdeaTagsUI(true);
     }
 
