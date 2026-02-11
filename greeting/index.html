@@ -158,7 +158,10 @@
       background: rgba(255,255,255,0.70);
       box-shadow: 0 10px 24px rgba(0,0,0,0.08);
       flex: 0 0 auto;
+      color: rgba(11,42,120,0.82);
     }
+    .entryIcon svg{ width: 22px; height: 22px; display:block; }
+    .entryIcon svg *{ stroke: currentColor; }
     .entryMain{ min-width: 0; }
     .entryTitle{ font-weight: 950; color: rgba(0,0,0,0.82); letter-spacing: 0.2px; }
     .entryDesc{ margin-top:6px; font-size: 13px; line-height: 1.55; color: rgba(0,0,0,0.54); }
@@ -233,7 +236,12 @@
   <nav class="hub" aria-label="entries">
     <a class="entry notes" href="../notes/">
       <div class="entryRow">
-        <div class="entryIcon" aria-hidden="true">✎</div>
+        <div class="entryIcon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
+          </svg>
+        </div>
         <div class="entryMain">
           <div class="entryTitle">碎碎念</div>
           <div class="entryDesc">把想你时的胡言乱语都收好。</div>
@@ -243,7 +251,15 @@
 
     <a class="entry dates" href="../dates/">
       <div class="entryRow">
-        <div class="entryIcon" aria-hidden="true">☁</div>
+        <div class="entryIcon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="5" width="16" height="16" rx="4" />
+            <path d="M8 3v4" />
+            <path d="M16 3v4" />
+            <path d="M7 11h10" />
+            <path d="M12 14.5c1.2-1.4 3.2-1.2 3.2.6 0 1.9-3.2 3.8-3.2 3.8S8.8 17 8.8 15.1c0-1.8 2-2 3.2-.6z" />
+          </svg>
+        </div>
         <div class="entryMain">
           <div class="entryTitle">约会日记</div>
           <div class="entryDesc">把每一次见面，都写成故事。</div>
@@ -253,7 +269,14 @@
 
     <a class="entry garden" href="../simple/">
       <div class="entryRow">
-        <div class="entryIcon" aria-hidden="true">❀</div>
+        <div class="entryIcon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 21s-5-3-7-8c2 1 5 1 7-1 2 2 5 2 7 1-2 5-7 8-7 8z" />
+            <path d="M12 12V3" />
+            <path d="M7 6c2 1 3 2 5 3" />
+            <path d="M17 6c-2 1-3 2-5 3" />
+          </svg>
+        </div>
         <div class="entryMain">
           <div class="entryTitle">小花园</div>
           <div class="entryDesc">我们的小世界，慢慢长大。</div>
@@ -263,7 +286,13 @@
 
     <a class="entry" href="#" id="logout" style="grid-column: 1 / -1; min-height: 0;">
       <div class="entryRow">
-        <div class="entryIcon" aria-hidden="true">↩</div>
+        <div class="entryIcon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 7H6V4" />
+            <path d="M6 7c4.5 0 12 0 12 0a4 4 0 0 1 0 8H9" />
+            <path d="M9 19l-3-3 3-3" />
+          </svg>
+        </div>
         <div class="entryMain">
           <div class="entryTitle">退出登录</div>
           <div class="entryDesc">把这扇门轻轻关上。</div>
