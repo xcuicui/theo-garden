@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Theo 的约会清单</title>
+  <title>约会日记</title>
   <style>
     :root{ color-scheme: light; }
     *,*::before,*::after{ box-sizing:border-box; }
@@ -20,7 +20,7 @@
     }
     .wrap{max-width: 980px; margin:0 auto; padding: 18px;}
     .top{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
-    h1{margin: 6px 0; font-size:22px; color: rgba(0,0,0,0.84);}
+    h1{margin: 6px 0; font-size:20px; color: rgba(0,0,0,0.84);}
     .sub{margin:0; font-size:13px; color: rgba(0,0,0,0.52); line-height:1.6}
 
     .card{
@@ -46,8 +46,6 @@
     }
     .card > *{ position: relative; }
 
-    .grid{display:grid; grid-template-columns: 1fr; gap:14px;}
-
     a.btn, button{
       border:0;
       border-radius: 999px;
@@ -72,39 +70,9 @@
     button.primary:disabled{opacity:0.6; cursor:not-allowed;}
 
     .meta{font-size:12px; color: rgba(0,0,0,0.48);}
-    .ideaList{margin-top:10px; display:grid; gap:10px;}
-    .groupTitle{font-weight:950; color: rgba(0,0,0,0.74); margin-top:8px;}
-    .ideaBtn{
-      width:100%;
-      text-align:left;
-      border: 1px solid rgba(0,0,0,0.06);
-      background: rgba(255,255,255,0.72);
-      border-radius: 18px;
-      padding: 10px 12px;
-      box-shadow: 0 12px 28px rgba(11,42,120,0.08);
-    }
-    .ideaBtn.sel{ outline: 3px solid rgba(11,42,120,0.18); }
 
-    .groupHeader{
-      width:100%;
-      text-align:left;
-      border: 1px solid rgba(11,42,120,0.10);
-      background: linear-gradient(135deg, rgba(11,42,120,0.08), rgba(90,167,255,0.10));
-      border-radius: 18px;
-      padding: 10px 12px;
-      box-shadow: 0 16px 36px rgba(11,42,120,0.10);
-      cursor:pointer;
-    }
-    .groupHeader .row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
-    .groupHeader .left{display:flex; align-items:center; gap:10px; min-width:0;}
-    .chev{width:26px; height:26px; border-radius:999px; display:grid; place-items:center;
-      border:1px solid rgba(11,42,120,0.14); background: rgba(255,255,255,0.70); color: rgba(11,42,120,0.80);
-      flex:0 0 auto;
-    }
-    .groupHeader .name{font-weight:950; color: rgba(11,42,120,0.92); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .groupHeader .metaRight{font-size:12px; color: rgba(0,0,0,0.52); flex:0 0 auto;}
-    .ideaTitle{font-size:14px; color: rgba(0,0,0,0.78); font-weight:900;}
-    .ideaTags{margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; font-size:12px; color: rgba(0,0,0,0.46)}
+    .ideaTitle{font-size:16px; color: rgba(0,0,0,0.82); font-weight:950;}
+    .ideaTags{margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; font-size:12px;}
     .tag{display:inline-flex; align-items:center; gap:6px; padding: 4px 8px; border-radius:999px; border:1px solid rgba(0,0,0,0.06); background: rgba(255,255,255,0.70); color: rgba(0,0,0,0.72)}
     .tag.t{background: rgba(11,42,120,0.10); border-color: rgba(11,42,120,0.18); color: rgba(11,42,120,0.92)}
     .tag.v{background: rgba(255,120,180,0.10); border-color: rgba(255,120,180,0.22); color: rgba(150,0,70,0.86)}
@@ -143,9 +111,6 @@
       background: rgba(0,0,0,0.80); color:#fff; padding: 10px 14px; border-radius: 999px; font-size: 13px;
       box-shadow: 0 18px 50px rgba(0,0,0,0.20); display:none; max-width: calc(100% - 24px); text-align:center; z-index: 50;}
 
-    .pillRow{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
-    .pill{padding: 8px 10px; border-radius:999px; border:1px solid rgba(31,102,227,0.14); background: rgba(255,255,255,0.74); font-size: 13px;}
-
     /* image modal */
     #imgModal{position:fixed; inset:0; display:none; place-items:center; padding:18px; background:rgba(10,16,30,0.72); backdrop-filter: blur(10px); z-index:200;}
   </style>
@@ -172,49 +137,131 @@
   <div class="wrap">
     <div class="top">
       <div>
-        <h1>Theo 的约会清单</h1>
-        <p class="sub">把想做的约会都收起来；每一项都可以写日记 + 传照片。</p>
+        <h1 id="pageTitle">约会日记</h1>
+        <p class="sub">点点滴滴都记下来～</p>
       </div>
-      <div class="pillRow">
-        <a class="btn" href="../greeting/">返回问候页</a>
-        <a class="btn" href="../notes/">碎碎念</a>
+      <div>
+        <a class="btn" href="./">返回清单</a>
       </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
-        <div class="meta">清单</div>
-        <div class="pillRow" style="margin-top:10px;">
-          <span class="pill" id="stat"></span>
-          <button class="pill" id="reloadIdeas">刷新</button>
-          <button class="pill" id="clearFilters" style="display:none;">清空筛选</button>
-        </div>
-        <div class="pillRow" id="selectedFilters" style="margin-top:10px; display:none;"></div>
+    <div class="card">
+      <div class="meta">项目</div>
+      <div class="ideaTitle" id="ideaTitle">加载中…</div>
+      <div class="ideaTags" id="ideaTags"></div>
+    </div>
 
-        <div class="pillRow" id="groupTypeBar" style="margin-top:10px;">
-          <span class="meta" style="margin-right:6px;">按标签分类：</span>
-          <button class="pill" id="group_t">类型</button>
-          <button class="pill" id="group_v">氛围</button>
-          <button class="pill" id="group_c">约束</button>
-          <button class="pill" id="group_p">地点</button>
-          <button class="pill" id="group_none">不分类</button>
-        </div>
+    <div class="card">
+      <div class="meta">写一篇日记</div>
+      <label>今天发生了什么？</label>
+      <textarea id="text" placeholder="记录一下：去哪里、吃了什么、谁说了什么傻话、心情怎样…"></textarea>
 
-        <div class="ideaList" id="ideaList"></div>
-        <div class="meta" style="margin-top:10px;">提示：当前 ideas.json 先放了一个示例项；你把截图里的清单整理进 ideas.json 就能全部显示。</div>
+      <label>上传照片（可多张）</label>
+      <input id="photos" type="file" accept="image/*" multiple />
+      <div class="thumbs" id="thumbs"></div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+        <button class="primary" id="save">保存日记</button>
       </div>
+      <div class="meta" style="margin-top:10px;">当前版本：只做最快可用（先不支持视频）。</div>
+    </div>
 
-      <div class="card">
-        <div class="meta">说明</div>
-        <div class="meta" style="margin-top:8px;">现在清单页不再展示日记。点击任意项目，进入详情页写日记/上传照片。</div>
-      </div>
+    <div class="card">
+      <div class="meta" id="logsTitle">关联日记</div>
+      <div class="list" id="logs"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div id="imgModal">
+    <div style="position:relative; width:min(920px, 100%); max-height: 90svh;">
+      <button id="imgClose" style="position:absolute; top:-10px; right:-10px; width:42px; height:42px; border-radius:999px; border:1px solid rgba(255,255,255,0.20); background:rgba(255,255,255,0.14); color:#fff; cursor:pointer;">×</button>
+      <img id="imgBig" alt="photo" style="width:100%; max-height: 90svh; object-fit:contain; border-radius: 22px; border:1px solid rgba(255,255,255,0.16); box-shadow: 0 28px 90px rgba(0,0,0,0.35); background: rgba(255,255,255,0.06);" />
     </div>
   </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
+    const toast = (msg) => {
+      const t = $('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => t.style.display = 'none', 1600);
+    };
 
-    // --- Token gate (reuse same mechanism as /notes/) ---
+    // image modal
+    const imgModal = $('imgModal');
+    const imgBig = $('imgBig');
+    const imgClose = $('imgClose');
+    function openImg(src){ imgBig.src = src; imgModal.style.display = 'grid'; }
+    function closeImg(){ imgModal.style.display = 'none'; imgBig.src = ''; }
+    imgClose.onclick = closeImg;
+    imgModal.addEventListener('click', (e) => { if (e.target === imgModal) closeImg(); });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeImg(); });
+
+    // --- Tag display ---
+    const TAG_CN = {
+      't:outdoor':'户外',
+      't:food':'吃喝',
+      't:life':'室内/日常',
+      't:nightlife':'夜生活',
+      't:culture':'文化/手作',
+      't:watch':'观影/追剧',
+
+      'v:challenge':'挑战/运动',
+      'v:cozy':'舒服/松弛',
+      'v:fun':'热闹/好玩',
+      'v:healing':'治愈/放松',
+      'v:photo':'出片',
+      'v:romantic':'浪漫',
+
+      'c:indoor':'室内',
+      'c:outdoor':'室外',
+
+      'p:shenzhen':'深圳',
+      'p:guangzhou':'广州',
+      'p:shenzhen-bay-park':'深圳湾公园',
+      'p:qiedao':'企鹅岛',
+      'p:xiwan-hongshulin':'西湾红树林',
+      'p:huanle-gangwan':'欢乐港湾',
+      'p:haishijie':'海上世界',
+      'p:nantou-gucheng':'南头古城',
+      'p:daxuecheng':'大学城',
+      'p:f518':'F518 创意园',
+      'p:dafen-youhuacun':'大芬油画村',
+      'p:laifushi':'来福士',
+      'p:haiancheng':'海岸城',
+      'p:yuexiu-gongyuan':'越秀公园',
+      'p:bulaien-gongyuan':'布莱恩公园',
+      'p:bulage-dongjing':'布歌东京'
+    };
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function tagType(tag){
+      if (/^t:/.test(tag)) return 't';
+      if (/^v:/.test(tag)) return 'v';
+      if (/^c:/.test(tag)) return 'c';
+      if (/^p:/.test(tag)) return 'p';
+      if (/^x:/.test(tag)) return 'x';
+      return 'x';
+    }
+    function tagLabel(tag){
+      const key = String(tag||'');
+      if (TAG_CN[key]) return TAG_CN[key];
+      const idx = key.indexOf(':');
+      return idx > 0 ? key.slice(idx+1) : key;
+    }
+    function renderTags(el, tags){
+      const arr = Array.isArray(tags) ? tags : [];
+      const order = { t:0, v:1, c:2, p:3, x:4 };
+      const sorted = arr.slice().sort((a,b)=> (order[tagType(a)]??9) - (order[tagType(b)]??9));
+      el.innerHTML = sorted.map(t => `<span class="tag ${tagType(t)}" title="${escapeHtml(t)}">${escapeHtml(tagLabel(t))}</span>`).join('');
+    }
+
+    // --- Token gate (same as /notes/ & old /dates/) ---
     const KEY_STORAGE = 'theo_site_pass';
     async function b64ToBytes(b64){
       const bin = atob(String(b64).replace(/\n/g,''));
@@ -222,7 +269,6 @@
       for (let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
       return out;
     }
-
     async function decryptToken(pass){
       const enc = await fetch('./gh-token.enc.json', { cache: 'no-store' }).then(r=>r.json());
       const salt = await b64ToBytes(enc.salt);
@@ -348,6 +394,24 @@
       return res.json();
     }
 
+    async function ghFetchBlob(path, opts = {}){
+      const url = `https://api.github.com${path}`;
+      const res = await fetch(url, {
+        ...opts,
+        headers: {
+          'authorization': `Bearer ${GH_TOKEN}`,
+          'accept': 'application/vnd.github.raw',
+          'x-github-api-version': '2022-11-28',
+          ...(opts.headers || {}),
+        }
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`${res.status} ${t.slice(0, 200)}`);
+      }
+      return res.blob();
+    }
+
     async function ghGetFile(repoPath){
       const enc = repoPath.split('/').map(encodeURIComponent).join('/');
       return ghFetch(`/repos/${encodeURIComponent(GH_OWNER)}/${encodeURIComponent(GH_REPO)}/contents/${enc}?ref=main`);
@@ -392,33 +456,11 @@
       });
     }
 
-    // --- Private repo image display helpers ---
-    // Note: <img src="https://raw.githubusercontent.com/..."> will NOT work for private repos.
-    // We fetch blobs with Authorization, then convert to blob: URLs.
-    async function ghFetchBlob(path, opts = {}){
-      const url = `https://api.github.com${path}`;
-      const res = await fetch(url, {
-        ...opts,
-        headers: {
-          'authorization': `Bearer ${GH_TOKEN}`,
-          'accept': 'application/vnd.github.raw',
-          'x-github-api-version': '2022-11-28',
-          ...(opts.headers || {}),
-        }
-      });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`${res.status} ${t.slice(0, 200)}`);
-      }
-      return res.blob();
-    }
-
-    const __imgUrlCache = new Map(); // repoPath -> blobUrl
+    const __imgUrlCache = new Map();
     async function getPrivateImageUrl(repoPath){
       const key = String(repoPath || '');
       if (!key) return '';
       if (__imgUrlCache.has(key)) return __imgUrlCache.get(key);
-
       const enc = key.split('/').map(encodeURIComponent).join('/');
       const blob = await ghFetchBlob(`/repos/${encodeURIComponent(GH_OWNER)}/${encodeURIComponent(GH_REPO)}/contents/${enc}?ref=main`);
       const url = URL.createObjectURL(blob);
@@ -504,280 +546,20 @@
       return { b64, ext, mime: file.type || 'application/octet-stream' };
     }
 
-    // --- app state ---
-    const CATEGORY_LABEL = {
-      indoor: '室内',
-      outdoor: '室外',
-      food: '吃饭',
-      nightlife: '夜生活',
-      play: '玩耍',
-    };
+    // --- app ---
+    function getIdeaId(){
+      const u = new URL(location.href);
+      return u.searchParams.get('id') || '';
+    }
 
     let ideas = [];
     let curIdea = null;
     let logsIndex = { items: [] };
 
-    // tag filter state (AND)
-    const selectedTags = new Set();
-
-    // group-by-tag-type view state
-    // '' => no grouping, otherwise one of: t/v/c/p
-    let activeGroupType = '';
-    const collapsedGroups = new Set(); // key: `${type}:${tag}`
-    let groupCollapseInit = false; // when entering a group view, default collapse all groups
-    function hasTag(it, tag){
-      return Array.isArray(it.tags) && it.tags.includes(tag);
-    }
-    function matchSelected(it){
-      for (const t of selectedTags) {
-        if (!hasTag(it, t)) return false;
-      }
-      return true;
-    }
-    function addFilter(tag){
-      if (!tag) return;
-      selectedTags.add(tag);
-      renderSelectedFilters();
-      renderIdeas();
-    }
-    function removeFilter(tag){
-      selectedTags.delete(tag);
-      renderSelectedFilters();
-      renderIdeas();
-    }
-    function clearFilters(){
-      selectedTags.clear();
-      renderSelectedFilters();
-      renderIdeas();
-    }
-    function renderSelectedFilters(){
-      const box = $('selectedFilters');
-      const clearBtn = $('clearFilters');
-      const arr = Array.from(selectedTags);
-      if (!arr.length) {
-        box.style.display = 'none';
-        clearBtn.style.display = 'none';
-        box.innerHTML = '';
-        return;
-      }
-      box.style.display = 'flex';
-      clearBtn.style.display = 'inline-block';
-
-      // stable order: t,v,c,p,x
-      const order = { t:0, v:1, c:2, p:3, x:4 };
-      arr.sort((a,b)=> (order[tagType(a)]??9) - (order[tagType(b)]??9));
-
-      box.innerHTML = arr.map(t => {
-        const ty = tagType(t);
-        return `<span class="tag ${ty}" data-tag="${escapeHtml(t)}" title="点击移除">${escapeHtml(tagLabel(t))} ×</span>`;
-      }).join('');
-
-      // bind remove
-      box.querySelectorAll('.tag').forEach(el => {
-        el.addEventListener('click', (e) => {
-          e.preventDefault();
-          const t = el.getAttribute('data-tag') || '';
-          removeFilter(t);
-        });
-      });
-    }
-
-    function groupIdeas(items){
-      // category -> group -> [items]
-      const out = new Map();
-      for (const it of items) {
-        const cat = it.category || 'other';
-        const grp = it.group || '';
-        if (!out.has(cat)) out.set(cat, new Map());
-        const m = out.get(cat);
-        if (!m.has(grp)) m.set(grp, []);
-        m.get(grp).push(it);
-      }
-      return out;
-    }
-
-    function renderIdeaButton(it){
-      const btn = document.createElement('button');
-      btn.className = 'ideaBtn' + (curIdea && curIdea.id === it.id ? ' sel' : '');
-      btn.type = 'button';
-      const tagsHtml = (Array.isArray(it.tags) && it.tags.length) ? renderTagsHtml(it.tags) : '';
-      btn.innerHTML = `<div class="ideaTitle">${escapeHtml(it.title || it.id)}</div>` + (tagsHtml ? `<div class="ideaTags">${tagsHtml}</div>` : '');
-
-      // tag click => filter
-      btn.querySelectorAll('.tag[data-tag]').forEach(tel => {
-        tel.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const t = tel.getAttribute('data-tag') || '';
-          addFilter(t);
-        });
-      });
-
-      btn.onclick = () => {
-        // navigate to detail page for diary
-        const url = `./idea.html?id=${encodeURIComponent(String(it.id || ''))}`;
-        location.href = url;
-      };
-      return btn;
-    }
-
-    function renderIdeas(){
-      const el = $('ideaList');
-      el.innerHTML = '';
-
-      const total = ideas.length;
-      const filtered = ideas.filter(matchSelected);
-      const n = filtered.length;
-      $('stat').textContent = selectedTags.size ? `筛选后 ${n} / ${total} 项` : `共 ${total} 项`;
-
-      // no grouping
-      if (!activeGroupType) {
-        const items = filtered.slice().sort((a,b) => String(a.title||'').localeCompare(String(b.title||''), 'zh-CN'));
-        for (const it of items) el.appendChild(renderIdeaButton(it));
-        return;
-      }
-
-      // group by tag type (t/v/c/p)
-      const groups = new Map(); // tag -> items
-      for (const it of filtered) {
-        const tags = Array.isArray(it.tags) ? it.tags : [];
-        const ts = tags.filter(x => tagType(x) === activeGroupType);
-        // if item has no tag of that type, drop into an "other" bucket
-        const keys = ts.length ? ts : [`${activeGroupType}:__none__`];
-        for (const k of keys) {
-          if (!groups.has(k)) groups.set(k, []);
-          groups.get(k).push(it);
-        }
-      }
-
-      const groupKeys = Array.from(groups.keys()).sort((a,b) => {
-        // keep __none__ last
-        const an = String(a).includes('__none__');
-        const bn = String(b).includes('__none__');
-        if (an !== bn) return an ? 1 : -1;
-        return String(tagLabel(a)).localeCompare(String(tagLabel(b)), 'zh-CN');
-      });
-
-      // default collapse all groups when entering a group view
-      if (groupCollapseInit) {
-        for (const k of groupKeys) collapsedGroups.add(`${activeGroupType}:${k}`);
-        groupCollapseInit = false;
-      }
-
-      for (const k of groupKeys) {
-        const items = groups.get(k) || [];
-        items.sort((a,b) => String(a.title||'').localeCompare(String(b.title||''), 'zh-CN'));
-
-        const isNone = String(k).includes('__none__');
-        const title = isNone ? '（未标注）' : tagLabel(k);
-        const key2 = `${activeGroupType}:${k}`;
-        const collapsed = collapsedGroups.has(key2);
-
-        const header = document.createElement('button');
-        header.type = 'button';
-        header.className = 'groupHeader';
-        header.innerHTML = `
-          <div class="row">
-            <div class="left">
-              <span class="chev">${collapsed ? '▸' : '▾'}</span>
-              <span class="name">${escapeHtml(title)}</span>
-            </div>
-            <span class="metaRight">${items.length} 项</span>
-          </div>
-        `;
-        header.onclick = () => {
-          if (collapsedGroups.has(key2)) collapsedGroups.delete(key2);
-          else collapsedGroups.add(key2);
-          renderIdeas();
-        };
-        el.appendChild(header);
-
-        if (collapsed) continue;
-        for (const it of items) el.appendChild(renderIdeaButton(it));
-      }
-    }
-
-    function escapeHtml(s){
-      return String(s||'').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    // --- Tag display (make tags readable) ---
-    // Keep ideas.json tags as typed keys (t:/v:/c:/p:/x:), but display Chinese labels with colors.
-    const TAG_CN = {
-      // t: （收敛后的 6 类）
-      't:outdoor':'户外',
-      't:food':'吃喝',
-      't:life':'室内/日常',
-      't:nightlife':'夜生活',
-      't:culture':'文化/手作',
-      't:watch':'观影/追剧',
-
-      // v:
-      'v:challenge':'挑战/运动',
-      'v:cozy':'舒服/松弛',
-      'v:fun':'热闹/好玩',
-      'v:healing':'治愈/放松',
-      'v:photo':'出片',
-      'v:romantic':'浪漫',
-
-      // c:
-      'c:indoor':'室内',
-      'c:outdoor':'室外',
-
-      // p: (常用地点)
-      'p:shenzhen':'深圳',
-      'p:guangzhou':'广州',
-      'p:shenzhen-bay-park':'深圳湾公园',
-      'p:qiedao':'企鹅岛',
-      'p:xiwan-hongshulin':'西湾红树林',
-      'p:huanle-gangwan':'欢乐港湾',
-      'p:haishijie':'海上世界',
-      'p:nantou-gucheng':'南头古城',
-      'p:daxuecheng':'大学城',
-      'p:f518':'F518 创意园',
-      'p:dafen-youhuacun':'大芬油画村',
-      'p:laifushi':'来福士',
-      'p:haiancheng':'海岸城',
-      'p:yuexiu-gongyuan':'越秀公园',
-      'p:bulaien-gongyuan':'布莱恩公园',
-      'p:bulage-dongjing':'布歌东京'
-    };
-
-    function tagType(tag){
-      const m = /^([tvcp x]):/.exec(String(tag||''));
-      if (/^t:/.test(tag)) return 't';
-      if (/^v:/.test(tag)) return 'v';
-      if (/^c:/.test(tag)) return 'c';
-      if (/^p:/.test(tag)) return 'p';
-      if (/^x:/.test(tag)) return 'x';
-      return 'x';
-    }
-
-    function tagLabel(tag){
-      const key = String(tag||'');
-      if (TAG_CN[key]) return TAG_CN[key];
-      // fallback: strip prefix and show raw
-      const idx = key.indexOf(':');
-      return idx > 0 ? key.slice(idx+1) : key;
-    }
-
-    function renderTagsHtml(tags){
-      const arr = Array.isArray(tags) ? tags : [];
-      // order: t, v, c, p, x
-      const order = { t:0, v:1, c:2, p:3, x:4 };
-      const sorted = arr.slice().sort((a,b)=> (order[tagType(a)]??9) - (order[tagType(b)]??9));
-      return sorted.map(t => {
-        const ty = tagType(t);
-        return `<span class="tag ${ty}" data-tag="${escapeHtml(t)}" title="${escapeHtml(t)}">${escapeHtml(tagLabel(t))}</span>`;
-      }).join('');
-    }
-
     async function loadIdeas(){
       const r = await fetch('./ideas.json', { cache: 'no-store' });
       const j = await r.json();
       ideas = Array.isArray(j) ? j : [];
-      renderSelectedFilters();
-      renderIdeas();
     }
 
     async function loadLogsIndex(){
@@ -792,7 +574,7 @@
       el.innerHTML = '';
       if (!curIdea) {
         title.textContent = '关联日记';
-        el.innerHTML = '<div class="meta">左边选一项，我就把日记都给你翻出来～</div>';
+        el.innerHTML = '<div class="meta">没有找到这个项目～</div>';
         return;
       }
 
@@ -826,7 +608,7 @@
             const img = document.createElement('img');
             img.alt = 'photo';
             img.loading = 'lazy';
-            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='; // 1x1 placeholder
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
             (async () => {
               try {
                 const url = await getPrivateImageUrl(p);
@@ -845,35 +627,37 @@
       }
     }
 
-    function setGroupType(t){
-      activeGroupType = t || '';
-      // reset collapse state when switching
-      collapsedGroups.clear();
-      groupCollapseInit = !!activeGroupType;
-      // update button styles (simple selected outline)
-      ['t','v','c','p','none'].forEach(k => {
-        const id = k==='none' ? 'group_none' : ('group_' + k);
-        const el = $(id);
-        if (!el) return;
-        const on = (k==='none' ? !activeGroupType : activeGroupType===k);
-        el.style.outline = on ? '3px solid rgba(11,42,120,0.18)' : 'none';
+    // photo preview
+    let selectedFiles = [];
+    const thumbsEl = $('thumbs');
+    function renderThumbs(){
+      thumbsEl.innerHTML = '';
+      selectedFiles.forEach((f, idx) => {
+        const div = document.createElement('div');
+        div.className = 'thumb';
+        const img = document.createElement('img');
+        img.alt = 'preview';
+        img.src = URL.createObjectURL(f);
+        img.onclick = () => openImg(img.src);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '×';
+        btn.onclick = () => {
+          selectedFiles.splice(idx, 1);
+          renderThumbs();
+        };
+        div.appendChild(img);
+        div.appendChild(btn);
+        thumbsEl.appendChild(div);
       });
-      renderIdeas();
     }
+    $('photos').addEventListener('change', () => {
+      selectedFiles = Array.from($('photos').files || []);
+      renderThumbs();
+    });
 
-    $('reloadIdeas').onclick = () => loadIdeas();
-    $('clearFilters').onclick = () => clearFilters();
-
-    // group type buttons
-    $('group_t').onclick = () => setGroupType('t');
-    $('group_v').onclick = () => setGroupType('v');
-    $('group_c').onclick = () => setGroupType('c');
-    $('group_p').onclick = () => setGroupType('p');
-    $('group_none').onclick = () => setGroupType('');
-
-    const saveBtn = $('save');
-    if (saveBtn) saveBtn.onclick = async () => {
-      if (!curIdea) { toast('先选一项约会～'); return; }
+    $('save').onclick = async () => {
+      if (!curIdea) { toast('没有找到项目～'); return; }
       const btn = $('save');
       const text = String($('text').value || '').trim();
       const files = selectedFiles.length ? selectedFiles : Array.from($('photos').files || []);
@@ -898,7 +682,6 @@
 
         const author = (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : '';
 
-        // upload images first
         const imgPaths = [];
         for (let i=0;i<files.length;i++) {
           btn.textContent = `上传照片 ${i+1}/${files.length}…`;
@@ -908,14 +691,12 @@
           await ghPutFile(path, payload.b64, `Add date photo ${day} ${stamp} #${i+1}`);
         }
 
-        // update day entries
         const dailyPath = `${dayDir}/entries.json`;
         const daily = (await ghTryGetJson(dailyPath)) || { day, items: [] };
         daily.items = Array.isArray(daily.items) ? daily.items : [];
         daily.items.unshift({ ts, ideaIds: [curIdea.id], text, images: imgPaths, author });
         await ghPutFile(dailyPath, await base64Utf8(JSON.stringify(daily, null, 2)), `Update date entries ${day}`);
 
-        // update global index
         const idxPath = 'dates/index.json';
         const idx = (await ghTryGetJson(idxPath)) || { items: [] };
         idx.items = Array.isArray(idx.items) ? idx.items : [];
@@ -923,7 +704,6 @@
         idx.items = idx.items.slice(0, 400);
         await ghPutFile(idxPath, await base64Utf8(JSON.stringify(idx, null, 2)), `Update dates index ${day}`);
 
-        // refresh view
         logsIndex = idx;
         $('text').value = '';
         $('photos').value = '';
@@ -942,8 +722,28 @@
     };
 
     (async () => {
-      // list page no longer needs GitHub token; diary lives in idea.html
+      const ok = await ensurePassAndToken();
+      if (!ok) return;
+
       await loadIdeas();
+      const id = getIdeaId();
+      curIdea = ideas.find(x => String(x.id) === String(id)) || null;
+
+      if (!curIdea) {
+        $('ideaTitle').textContent = '项目不存在或链接不对';
+        $('pageTitle').textContent = '约会日记';
+        $('ideaTags').innerHTML = '';
+        await loadLogsIndex();
+        await renderLogs();
+        return;
+      }
+
+      $('pageTitle').textContent = `约会日记 · ${curIdea.title || curIdea.id}`;
+      $('ideaTitle').textContent = curIdea.title || curIdea.id;
+      renderTags($('ideaTags'), curIdea.tags || []);
+
+      await loadLogsIndex();
+      await renderLogs();
     })();
   </script>
 </body>
