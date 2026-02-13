@@ -447,20 +447,17 @@
       return new TextDecoder('utf-8').decode(new Uint8Array(pt));
     }
 
-    // gate overlay
-    const gate = document.createElement('div');
-    gate.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;padding:18px;background:rgba(245,249,255,0.66);backdrop-filter:blur(14px);z-index:99;';
-    gate.innerHTML = `
-      <div style="box-sizing:border-box;width:min(520px,calc(100% - 8px));max-width:100%;border-radius:24px;background:linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.72));border:1px solid rgba(31,102,227,0.14);box-shadow:0 28px 90px rgba(11,42,120,0.18);padding:18px 16px;overflow:hidden;">
-        <div style="font-size:18px;font-weight:950;color:rgba(0,0,0,0.84)">Theo 的碎碎念收纳处</div>
-        <div style="margin-top:8px;font-size:13px;color:rgba(0,0,0,0.55);line-height:1.65">请输入 4 位数口令，姐姐和我第一次见面的日子～</div>
-        <input id="keyInput" type="password" placeholder="口令" style="box-sizing:border-box;margin-top:12px;width:100%;max-width:100%;border-radius:16px;border:1px solid rgba(31,102,227,0.16);padding:11px 12px;font-size:14px;outline:none;background:rgba(255,255,255,0.92);" />
-        <div id="keyErr" style="margin-top:10px;font-size:13px;color:#b0003a;display:none">口令不对哦，再试一次～</div>
-        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-          <button id="keyOk" class="primary" style="border:0;border-radius:999px;padding:10px 14px;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#0b2a78,#5aa7ff);color:#fff;font-weight:900;">进入</button>
-        </div>
-      </div>
-    `;
+    function basePath(){
+      // '/theo-garden' (repo pages base)
+      const parts = location.pathname.split('/').filter(Boolean);
+      return parts.length ? `/${parts[0]}` : '';
+    }
+
+    function redirectToLogin(){
+      const base = basePath();
+      const next = location.pathname.slice(base.length) + location.search + location.hash;
+      location.replace(base + '/?next=' + encodeURIComponent(next));
+    }
 
     let GH_TOKEN = '';
     const GH_OWNER = 'xcuicui';
@@ -470,7 +467,6 @@
       const tryPass = async (p) => {
         try {
           const tok = await decryptToken(p);
-          // quick sanity check
           if (!tok || tok.length < 10) throw new Error('bad');
           GH_TOKEN = tok;
           setPass(p);
@@ -480,38 +476,22 @@
         }
       };
 
-      const existing = getPass();
-      if (existing) {
-        const ok = await tryPass(existing);
-        if (ok) {
-          // If pass is already stored and valid, skip gate and render immediately.
-          render();
-          return;
-        }
-        clearPass();
+      const pass = getPass();
+      if (!pass) {
+        // No pass stored: force user to re-login on / once (no in-page prompt).
+        redirectToLogin();
+        return;
       }
 
-      document.body.appendChild(gate);
-      const input = gate.querySelector('#keyInput');
-      const err = gate.querySelector('#keyErr');
-      const btn = gate.querySelector('#keyOk');
+      const ok = await tryPass(pass);
+      if (!ok) {
+        // Stored pass invalid/changed: clear and force re-login.
+        clearPass();
+        redirectToLogin();
+        return;
+      }
 
-      const submit = async () => {
-        err.style.display = 'none';
-        const v = String(input.value || '').trim();
-        if (!v) return;
-        const ok = await tryPass(v);
-        if (ok) {
-          gate.remove();
-          render();
-        } else {
-          err.style.display = 'block';
-        }
-      };
-
-      btn.onclick = submit;
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
-      input.focus();
+      render();
     }
 
     // --- GitHub API helpers ---
