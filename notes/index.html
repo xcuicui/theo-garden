@@ -325,12 +325,39 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const toast = (msg) => {
+    const toast = (msg, action) => {
       const t = $('toast');
-      t.textContent = msg;
+      if (!t) return;
+
+      // action: { label: string, onClick: fn, ms?: number }
+      const label = action && action.label ? String(action.label) : '';
+      const ms = action && action.ms ? Number(action.ms) : 1600;
+
+      if (label) {
+        t.innerHTML = '';
+        const span = document.createElement('span');
+        span.textContent = String(msg || '');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.style.marginLeft = '10px';
+        btn.style.padding = '6px 10px';
+        btn.style.borderRadius = '999px';
+        btn.style.border = '1px solid rgba(0,0,0,0.10)';
+        btn.style.background = 'rgba(255,255,255,0.7)';
+        btn.style.cursor = 'pointer';
+        btn.onclick = () => {
+          try { action.onClick && action.onClick(); } finally { t.style.display = 'none'; }
+        };
+        t.appendChild(span);
+        t.appendChild(btn);
+      } else {
+        t.textContent = String(msg || '');
+      }
+
       t.style.display = 'block';
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => t.style.display = 'none', 1600);
+      toast._t = setTimeout(() => t.style.display = 'none', ms);
     };
 
     // image modal
@@ -660,6 +687,157 @@
       }
     }
 
+
+    function normalizeEntry(dayStr, it){
+      it = (it && typeof it === 'object') ? it : {};
+      const ts = Number(it.ts || 0) || Date.now();
+      const id = it.id ? String(it.id) : entryId(dayStr, ts);
+      const out = {
+        id,
+        ts,
+        text: String(it.text || ''),
+        images: Array.isArray(it.images) ? it.images.slice(0, 50) : [],
+        author: it.author ? String(it.author) : '',
+        deletedAt: it.deletedAt ? Number(it.deletedAt) : 0,
+        deletedBy: it.deletedBy ? String(it.deletedBy) : '',
+      };
+      return out;
+    }
+
+    function canDeleteEntry(it){
+      const user = (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : '';
+      if (!user) return false;
+      const author = it && it.author ? String(it.author) : '';
+      if (!author) return true; // legacy items without author
+      return author === user;
+    }
+
+    async function updateJsonWithRetry(path, mutateFn, commitMsg){
+      for (let attempt=0; attempt<3; attempt++){
+        const cur = (await ghTryGetJson(path)) || null;
+        const next = await mutateFn(cur);
+        try {
+          await ghPutFile(path, await base64Utf8(JSON.stringify(next, null, 2)), commitMsg);
+          return next;
+        } catch (e) {
+          if (attempt === 2) throw e;
+          await new Promise(r => setTimeout(r, 250 + attempt*250));
+        }
+      }
+    }
+
+    let lastDeleted = null; // { day, id, at }
+
+    async function deleteEntry(dayStr, eid){
+      const user = (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : '';
+      if (!user) { toast('未登录，无法删除～'); return; }
+
+      const ok = confirm('确定删除这条碎碎念吗？（可撤销）');
+      if (!ok) return;
+
+      // Update daily entries.json
+      const dailyPath = `notes/${dayStr}/entries.json`;
+      const deletedAt = Date.now();
+      const dailyNext = await updateJsonWithRetry(dailyPath, (cur) => {
+        const base = (cur && typeof cur==='object') ? cur : { day: dayStr, items: [] };
+        base.day = dayStr;
+        base.items = Array.isArray(base.items) ? base.items : [];
+        base.items = base.items.map(x => {
+          const nx = normalizeEntry(dayStr, x);
+          if (String(nx.id) === String(eid)) {
+            nx.deletedAt = deletedAt;
+            nx.deletedBy = user;
+          }
+          return nx;
+        });
+        return base;
+      }, `Soft delete note ${dayStr} ${eid}`);
+
+      // Update index.json
+      const idxPath = 'notes/index.json';
+      const idxNext = await updateJsonWithRetry(idxPath, (cur) => {
+        const base = (cur && typeof cur==='object') ? cur : { items: [] };
+        base.items = Array.isArray(base.items) ? base.items : [];
+        base.items = base.items.map(x => {
+          x = (x && typeof x==='object') ? x : {};
+          const day = String(x.day || '');
+          const ts = Number(x.ts || 0) || 0;
+          const id = x.id ? String(x.id) : ((day && ts) ? entryId(day, ts) : '');
+          if (day === dayStr && String(id) === String(eid)) {
+            x.id = id;
+            x.deletedAt = deletedAt;
+            x.deletedBy = user;
+          }
+          return x;
+        });
+        return base;
+      }, `Soft delete note index ${dayStr} ${eid}`);
+
+      // Update caches
+      dayCache.set(dayStr, dailyNext);
+      notesIndex = idxNext;
+      saveIndexCache(idxNext);
+
+      await renderDay(dayStr);
+      renderCalendar(viewY, viewM);
+      markSelected(dayStr);
+
+      // Setup undo
+      lastDeleted = { day: dayStr, id: eid, at: deletedAt };
+      toast('已删除（可撤销）', { label: '撤销', ms: 8000, onClick: async () => {
+        try { await undeleteEntry(dayStr, eid); toast('已撤销～'); }
+        catch (e) { toast('撤销失败：' + String(e).slice(0, 90)); }
+      }});
+    }
+
+    async function undeleteEntry(dayStr, eid){
+      const user = (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : '';
+      if (!user) { toast('未登录，无法撤销～'); return; }
+
+      const dailyPath = `notes/${dayStr}/entries.json`;
+      const dailyNext = await updateJsonWithRetry(dailyPath, (cur) => {
+        const base = (cur && typeof cur==='object') ? cur : { day: dayStr, items: [] };
+        base.day = dayStr;
+        base.items = Array.isArray(base.items) ? base.items : [];
+        base.items = base.items.map(x => {
+          const nx = normalizeEntry(dayStr, x);
+          if (String(nx.id) === String(eid)) {
+            nx.deletedAt = 0;
+            nx.deletedBy = '';
+          }
+          return nx;
+        });
+        return base;
+      }, `Undo delete note ${dayStr} ${eid}`);
+
+      const idxPath = 'notes/index.json';
+      const idxNext = await updateJsonWithRetry(idxPath, (cur) => {
+        const base = (cur && typeof cur==='object') ? cur : { items: [] };
+        base.items = Array.isArray(base.items) ? base.items : [];
+        base.items = base.items.map(x => {
+          x = (x && typeof x==='object') ? x : {};
+          const day = String(x.day || '');
+          const ts = Number(x.ts || 0) || 0;
+          const id = x.id ? String(x.id) : ((day && ts) ? entryId(day, ts) : '');
+          if (day === dayStr && String(id) === String(eid)) {
+            x.id = id;
+            x.deletedAt = 0;
+            x.deletedBy = '';
+          }
+          return x;
+        });
+        return base;
+      }, `Undo delete note index ${dayStr} ${eid}`);
+
+      dayCache.set(dayStr, dailyNext);
+      notesIndex = idxNext;
+      saveIndexCache(idxNext);
+
+      await renderDay(dayStr);
+      renderCalendar(viewY, viewM);
+      markSelected(dayStr);
+    }
+
     let notesIndex = { items: [] };
     const dayCache = new Map(); // day -> daily json
 
@@ -736,7 +914,8 @@
       // days set with entries
       const hasDays = new Set();
       for (const it of (notesIndex.items || [])) {
-        if (!it.day) continue;
+        if (!it || !it.day) continue;
+        if (it.deletedAt) continue;
         if (String(it.day).startsWith(ymKey(year,month))) hasDays.add(it.day);
       }
 
@@ -778,7 +957,8 @@
       if (!list) return;
 
       const daily = dayCache.get(dayStr) || { items: [] };
-      const items = Array.isArray(daily.items) ? daily.items : [];
+      const rawItems = Array.isArray(daily.items) ? daily.items : [];
+      const items = rawItems.map(it => normalizeEntry(dayStr, it)).filter(it => !it.deletedAt);
 
       list.innerHTML = '';
       if (!items.length) {
@@ -792,8 +972,29 @@
 
         const meta = document.createElement('div');
         meta.className = 'meta';
+
+        const metaLeft = document.createElement('span');
         const who = it.author ? `${it.author} · ` : '';
-        meta.textContent = who + new Date(it.ts || Date.now()).toLocaleString('zh-CN');
+        metaLeft.textContent = who + new Date(it.ts || Date.now()).toLocaleString('zh-CN');
+
+        meta.appendChild(metaLeft);
+
+        if (canDeleteEntry(it)) {
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.textContent = '删除';
+          delBtn.style.marginLeft = 'auto';
+          delBtn.style.padding = '4px 10px';
+          delBtn.style.borderRadius = '999px';
+          delBtn.style.border = '1px solid rgba(0,0,0,0.10)';
+          delBtn.style.background = 'rgba(255,255,255,0.75)';
+          delBtn.style.cursor = 'pointer';
+          delBtn.onclick = () => deleteEntry(dayStr, it.id);
+          meta.style.display = 'flex';
+          meta.style.alignItems = 'center';
+          meta.style.gap = '10px';
+          meta.appendChild(delBtn);
+        }
 
         const text = document.createElement('div');
         text.className = 'text';
@@ -1498,14 +1699,15 @@
 
         // optimistic: update UI immediately (text + placeholders)
         const author = (window.__AUTH__ && window.__AUTH__.user) ? String(window.__AUTH__.user) : '';
-        const optimisticEntry = { ts, text, images: [], author };
+        const id = entryId(day, ts);
+        const optimisticEntry = { id, ts, text, images: [], author, deletedAt: 0, deletedBy: '' };
         if (!dayCache.has(day)) dayCache.set(day, { day, items: [] });
         const daily0 = dayCache.get(day);
         daily0.items = Array.isArray(daily0.items) ? daily0.items : [];
         daily0.items.unshift(optimisticEntry);
 
         notesIndex.items = Array.isArray(notesIndex.items) ? notesIndex.items : [];
-        notesIndex.items.unshift({ ts, day, text, images: [] });
+        notesIndex.items.unshift({ id, ts, day, text, images: [], author, deletedAt: 0, deletedBy: '' });
         notesIndex.items = notesIndex.items.slice(0, 200);
 
         selectedDay = day;
@@ -1532,14 +1734,14 @@
         const dailyPath = `${dayDir}/entries.json`;
         const daily = (await ghTryGetJson(dailyPath)) || { day, items: [] };
         daily.items = Array.isArray(daily.items) ? daily.items : [];
-        daily.items.unshift({ ts, text, images: imgPaths, author });
+        daily.items.unshift({ id, ts, text, images: imgPaths, author, deletedAt: 0, deletedBy: '' });
         await ghPutFile(dailyPath, await base64Utf8(JSON.stringify(daily, null, 2)), `Update daily entries ${day}`);
 
         // Update index.json (fast list)
         const idxPath = 'notes/index.json';
         const idx = (await ghTryGetJson(idxPath)) || { items: [] };
         idx.items = Array.isArray(idx.items) ? idx.items : [];
-        idx.items.unshift({ ts, day, text, images: imgPaths, author });
+        idx.items.unshift({ id, ts, day, text, images: imgPaths, author, deletedAt: 0, deletedBy: '' });
         idx.items = idx.items.slice(0, 200);
         await ghPutFile(idxPath, await base64Utf8(JSON.stringify(idx, null, 2)), `Update notes index ${day}`);
         saveIndexCache(idx);
