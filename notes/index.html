@@ -741,6 +741,11 @@
       const dailyNext = await updateJsonWithRetry(dailyPath, (cur) => {
         const base = (cur && typeof cur==='object') ? cur : { day: dayStr, items: [] };
         base.day = dayStr;
+        if (!cur) {
+          // seed from in-memory cache (covers legacy markdown days without entries.json)
+          const cached = dayCache.get(dayStr);
+          base.items = Array.isArray(cached && cached.items) ? cached.items : [];
+        }
         base.items = Array.isArray(base.items) ? base.items : [];
         base.items = base.items.map(x => {
           const nx = normalizeEntry(dayStr, x);
@@ -763,8 +768,8 @@
           const day = String(x.day || '');
           const ts = Number(x.ts || 0) || 0;
           const id = x.id ? String(x.id) : ((day && ts) ? entryId(day, ts) : '');
+          if (id) x.id = id;
           if (day === dayStr && String(id) === String(eid)) {
-            x.id = id;
             x.deletedAt = deletedAt;
             x.deletedBy = user;
           }
@@ -798,6 +803,10 @@
       const dailyNext = await updateJsonWithRetry(dailyPath, (cur) => {
         const base = (cur && typeof cur==='object') ? cur : { day: dayStr, items: [] };
         base.day = dayStr;
+        if (!cur) {
+          const cached = dayCache.get(dayStr);
+          base.items = Array.isArray(cached && cached.items) ? cached.items : [];
+        }
         base.items = Array.isArray(base.items) ? base.items : [];
         base.items = base.items.map(x => {
           const nx = normalizeEntry(dayStr, x);
@@ -819,8 +828,8 @@
           const day = String(x.day || '');
           const ts = Number(x.ts || 0) || 0;
           const id = x.id ? String(x.id) : ((day && ts) ? entryId(day, ts) : '');
+          if (id) x.id = id;
           if (day === dayStr && String(id) === String(eid)) {
-            x.id = id;
             x.deletedAt = 0;
             x.deletedBy = '';
           }
