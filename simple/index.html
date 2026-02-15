@@ -207,6 +207,27 @@
       max-height: 82svh;
       overflow: auto;
       -webkit-overflow-scrolling: touch;
+      position: relative;
+    }
+    .centerClose{
+      position: sticky;
+      top: 0;
+      margin-left: auto;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: rgba(255,255,255,0.75);
+      color: rgba(0,0,0,0.70);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      line-height: 1;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      z-index: 2;
     }
     .centerSub{display:block; margin-top:8px; font-size:14px; color: rgba(0,0,0,0.60);}
     .centerSign{display:block; margin-top:10px; font-size:13px; color: rgba(0,0,0,0.50);}
@@ -688,7 +709,12 @@
       clearTimeout(centerMsg._timer);
 
       const show = () => {
-        card.innerHTML = html +
+        // Add a top-right close button inside the modal
+        card.innerHTML =
+          `<div style="display:flex; justify-content:flex-end; margin:-6px -6px 8px 0;">
+             <button class="centerClose" id="centerCloseBtn" aria-label="close">×</button>
+           </div>` +
+          html +
           `<div style="margin-top:14px; display:flex; justify-content:center;">
              <button class="btn" id="centerOkBtn">${buttonText}</button>
            </div>`;
@@ -698,6 +724,8 @@
         setTimeout(() => {
           const b = document.getElementById('centerOkBtn');
           if (b) b.onclick = (e) => { e.preventDefault(); hideCenterMsg(); };
+          const x = document.getElementById('centerCloseBtn');
+          if (x) x.onclick = (e) => { e.preventDefault(); hideCenterMsg(); };
         }, 0);
 
         // click backdrop to close
