@@ -628,8 +628,12 @@
 
       const out = { ...secondary, ...primary };
 
-      // score MUST allow decrease (spend), so follow the newer-side (primary)
-      out.score = Number(primary?.score || 0) || 0;
+      // IMPORTANT: never let "less" overwrite "more".
+      // Many users may not have synced yet; we must preserve local progress.
+      // Therefore we merge score/bag monotonically by taking max.
+      const lScore = Number(local?.score || 0) || 0;
+      const rScore = Number(remote?.score || 0) || 0;
+      out.score = Math.max(lScore, rScore);
 
       // checkins is a set union
       const s = new Set([...(remote?.checkins||[]), ...(local?.checkins||[])]);
@@ -640,13 +644,14 @@
       const b = String(local?.dailyBonusDay||'');
       out.dailyBonusDay = (a > b) ? a : b;
 
-      // bag MUST allow decrease (consume/use), so follow the newer-side (primary)
+      // bag: per-coupon count uses max so coupons are never lost
       const bag = {};
-      const pb = primary?.bag || {};
-      const sb = secondary?.bag || {};
-      for (const k of new Set([...Object.keys(pb), ...Object.keys(sb)])) {
-        if (pb && Object.prototype.hasOwnProperty.call(pb, k)) bag[k] = Number(pb[k]||0) || 0;
-        else bag[k] = Number(sb[k]||0) || 0;
+      const lb = (local && typeof local==='object' && local.bag && typeof local.bag==='object') ? local.bag : {};
+      const rb = (remote && typeof remote==='object' && remote.bag && typeof remote.bag==='object') ? remote.bag : {};
+      for (const k of new Set([...Object.keys(lb), ...Object.keys(rb)])) {
+        const lv = Number(lb[k] || 0) || 0;
+        const rv = Number(rb[k] || 0) || 0;
+        bag[k] = Math.max(lv, rv);
       }
       out.bag = bag;
 
