@@ -349,6 +349,7 @@
       <div class="rewardsTitle">抽奖小机</div>
       <div class="btns" style="margin-top:10px">
         <button class="btn primary" id="drawBtn">抽一次（-10 心心）</button>
+        <button class="btn" id="poolBtn">查看奖池与概率</button>
       </div>
       <div class="sub" style="margin-top:10px">抽到的券券会收进你的“小口袋”。</div>
       <div class="grid" id="rewards"></div>
@@ -411,7 +412,7 @@
       { id: 'kiss', title: '亲亲券', desc: '可兑换一个亲亲（害羞也算）', rarity: 'common' },
       { id: 'walk', title: '散步券', desc: '可兑换一次散步（一起慢慢走）', rarity: 'common' },
       { id: 'playlist', title: '歌单券', desc: '可兑换一个专属小歌单（按你当下心情）', rarity: 'common' },
-      { id: 'photo-anytime', title: '随时拍照券', desc: '可兑换一次“随时随地给你拍照”（拍到你满意为止）', rarity: 'common' },
+      { id: 'photo-anytime', title: '随时拍照券', desc: '随时可以要求对方给你拍张照片（拍到你满意为止）', rarity: 'common' },
 
       // rare
       { id: 'coffee', title: '咖啡券', desc: '可兑换一杯咖啡/奶茶（想喝就喝）', rarity: 'rare' },
@@ -419,6 +420,7 @@
       { id: 'movie', title: '电影券', desc: '可兑换一次一起看电影（线上/线下都算）', rarity: 'rare' },
       { id: 'massage', title: '按摩券', desc: '可兑换一次肩颈/背部按摩（10~20分钟）', rarity: 'rare' },
       { id: 'breakfast', title: '早餐券', desc: '可兑换一次早餐（热热的那种）', rarity: 'rare' },
+      { id: 'flower', title: '小花花券', desc: '可兑换一束小花（或一盆小植物）', rarity: 'rare' },
 
       // legendary
       { id: 'date', title: '约会券', desc: '可兑换一次约会（吃饭/逛街/散步任选）', rarity: 'legendary' },
@@ -426,10 +428,12 @@
       { id: 'wish', title: '许愿券', desc: '可兑换一个小愿望（合理范围内我尽力）', rarity: 'legendary' },
       { id: 'story', title: '睡前故事券', desc: '可兑换一段睡前故事（温柔版）', rarity: 'legendary' },
       { id: 'call', title: '电话券', desc: '可兑换一次电话/语音（想听你说话）', rarity: 'legendary' },
-      { id: 'flower', title: '小花花券', desc: '可兑换一束小花（或一盆小植物）', rarity: 'legendary' }
+
+      // mythic (ultra rare)
+      { id: 'any-demand', title: '任意要求券', desc: '可兑换一个任意要求（合理范围内）', rarity: 'mythic' }
     ];
 
-    const RARITY_WEIGHT = { common: 70, rare: 25, legendary: 5 };
+    const RARITY_WEIGHT = { common: 70, rare: 25, legendary: 5, mythic: 5 };
 
     function pickPrize(){
       const pool = PRIZES.map(p => ({ p, w: Number(RARITY_WEIGHT[p.rarity] || 0) || 0 })).filter(x => x.w > 0);
@@ -442,10 +446,24 @@
       return PRIZES[0];
     }
 
+    function prizeChances(){
+      // Return per-prize probability based on current PRIZES + RARITY_WEIGHT
+      const ws = PRIZES.map(p => Number(RARITY_WEIGHT[p.rarity] || 0) || 0);
+      const total = ws.reduce((a,b)=>a+b, 0) || 1;
+      return PRIZES.map((p, i) => ({
+        ...p,
+        w: ws[i],
+        prob: ws[i] / total, // 0..1
+        total,
+      }));
+    }
+
     function rarityLabel(r){
-      if (r === 'legendary') return '传说';
-      if (r === 'rare') return '稀有';
-      return '普通';
+      // Display names (3 tiers): 日常券 / 惊喜券 / 稀有券
+      // Note: mythic currently has the same weight as legendary, so it is grouped into “稀有券”.
+      if (r === 'legendary' || r === 'mythic') return '稀有券';
+      if (r === 'rare') return '惊喜券';
+      return '日常券';
     }
 
     const DRAW_COST = 10;
@@ -1221,6 +1239,26 @@
           `<span class="centerSub">${p.desc}</span>` +
           `<span class="centerSign">稀有度：${rarityLabel(p.rarity)}</span>`,
           { buttonText: '收进小口袋(๑•̀ㅂ•́)و' }
+        );
+      });
+
+      // View full prize pool + probabilities
+      $('poolBtn') && ($('poolBtn').onclick = () => {
+        const items = prizeChances();
+        // group by rarity in a stable order
+        const order = { common: 0, rare: 1, legendary: 2, mythic: 3 };
+        items.sort((a,b) => (order[a.rarity] ?? 9) - (order[b.rarity] ?? 9));
+
+        const lines = items.map(x => {
+          const pct = (x.prob * 100).toFixed(4);
+          return `• <b>${x.title}</b>（${rarityLabel(x.rarity)}）— <span style="white-space:nowrap;">${pct}%</span><br/><span class="centerSub">${x.desc}</span>`;
+        }).join('<div style="height:10px"></div>');
+
+        centerMsg(
+          `当前奖池（共 ${items.length} 张）` +
+          `<span class="centerSub">概率说明：按稀有度权重加权随机（同稀有度内等概率）。</span>` +
+          `<div style="margin-top:12px; text-align:left; font-size:14px; line-height:1.6;">${lines}</div>`,
+          { buttonText: '知道啦' }
         );
       });
 
