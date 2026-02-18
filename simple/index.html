@@ -190,6 +190,9 @@
     .rewardName{font-weight:900; font-size:14px; color:rgba(0,0,0,0.78)}
     .rewardNeed{font-size:12px; color:rgba(0,0,0,0.55); white-space:nowrap}
     .rewardDesc{margin-top:8px; font-size:13px; color:rgba(0,0,0,0.60); line-height:1.6}
+    .rewardActions{margin-top:10px; display:flex; justify-content:flex-end;}
+    .miniBtn{border:0; border-radius:999px; padding:8px 10px; font-size:12px; font-weight:900; cursor:pointer; background: rgba(11,42,120,0.08); color: rgba(11,42,120,0.85);}
+    .miniBtn.primary{background: linear-gradient(135deg,#0b2a78,#5aa7ff); color:#fff;}
     .footer{margin-top:14px; font-size:12px; color:rgba(0,0,0,0.45); text-align:center}
     .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); padding:10px 14px; border-radius:999px;
       background: rgba(0,0,0,0.78); color:#fff; font-size:13px; box-shadow: 0 18px 50px rgba(0,0,0,0.20);
@@ -655,6 +658,25 @@
       }
       out.bag = bag;
 
+      // redeem tokens: merge by union (monotonic)
+      function mergeTokenMap(a, b){
+        const oa = (a && typeof a === 'object') ? a : {};
+        const ob = (b && typeof b === 'object') ? b : {};
+        const out = {};
+        for (const k of new Set([...Object.keys(oa), ...Object.keys(ob)])) {
+          const va = oa[k];
+          const vb = ob[k];
+          const ta = Number(va?.usedAt || va?.issuedAt || 0) || 0;
+          const tb = Number(vb?.usedAt || vb?.issuedAt || 0) || 0;
+          const primary = (ta >= tb) ? (va || {}) : (vb || {});
+          const secondary = (primary === va) ? (vb || {}) : (va || {});
+          out[k] = { ...secondary, ...primary };
+        }
+        return out;
+      }
+      out.redeemIssued = mergeTokenMap(local?.redeemIssued, remote?.redeemIssued);
+      out.redeemUsed = mergeTokenMap(local?.redeemUsed, remote?.redeemUsed);
+
       out.user = AUTH_USER;
       out.version = 1;
       out.updatedAt = Math.max(Date.now(), lts, rts);
@@ -689,6 +711,13 @@
     }
 
     const $ = (id) => document.getElementById(id);
+
+    function basePath(){
+      // '/theo-garden' (repo pages base)
+      const parts = location.pathname.split('/').filter(Boolean);
+      return parts.length ? `/${parts[0]}` : '';
+    }
+
     const toast = (msg) => {
       const t = $('toast');
       t.textContent = msg;
@@ -836,10 +865,126 @@
             <div class="rewardNeed">x ${cnt}</div>
           </div>
           <div class="rewardDesc">${p.desc}</div>
+          <div class="rewardActions">
+            <button class="miniBtn primary" data-prize="${p.id}">生成核销码</button>
+          </div>
         `;
         grid.appendChild(div);
+
+        const btn = div.querySelector('button[data-prize]');
+        if (btn) {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            issueRedeemFlow(p.id);
+          });
+        }
       }
     };
+
+    async function issueRedeemFlow(prizeId){
+      const prize = PRIZES.find(x => x.id === prizeId);
+      const title = prize ? prize.title : prizeId;
+
+      // basic local check
+      const owned = Number((state.bag || {})[prizeId] || 0) || 0;
+      if (owned <= 0) {
+        toast('小口袋里没有这张券啦～');
+        return;
+      }
+
+      // Make sure we have pass to decrypt GH token
+      const pass = getSitePass();
+      if (!pass) {
+        centerMsg(`<div style="font-weight:900">需要 4 位口令</div><div class="sub" style="margin-top:8px">先从首页登录一次（输入 4 位口令），再回来生成核销码～</div>`, { buttonText: '好哒' });
+        return;
+      }
+
+      // Load remote state and check availability (owned - used - pending)
+      let remote;
+      try {
+        remote = await loadRemoteGardenState();
+      } catch (e) {
+        console.warn('load remote failed', e);
+        remote = null;
+      }
+      remote = remote && typeof remote === 'object' ? remote : {};
+
+      const issued = (remote.redeemIssued && typeof remote.redeemIssued==='object') ? remote.redeemIssued : {};
+      const used = (remote.redeemUsed && typeof remote.redeemUsed==='object') ? remote.redeemUsed : {};
+
+      const usedCount = Object.values(used).filter(v => v && v.prizeId === prizeId).length;
+      const pendingCount = Object.entries(issued).filter(([t, v]) => v && v.prizeId === prizeId && !used[t]).length;
+      const available = owned - usedCount - pendingCount;
+
+      if (available <= 0) {
+        centerMsg(
+          `<div style="font-weight:950">这张券暂时没有可核销的余额了</div>
+           <div class="sub" style="margin-top:8px">可能你已经生成过核销码，正在等对方扫码～</div>`,
+          { buttonText: '知道了' }
+        );
+        return;
+      }
+
+      // Create token
+      const bytes = new Uint8Array(18);
+      crypto.getRandomValues(bytes);
+      const token = btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
+
+      // Write issued record to remote
+      const local = {
+        ...remote,
+        redeemIssued: { ...(issued || {}), [token]: { prizeId, issuedAt: Date.now(), user: AUTH_USER, issuedBy: 'holder' } },
+        updatedAt: Date.now(),
+      };
+
+      const merged = mergeGardenState(local, remote);
+      const b64 = await base64Utf8(JSON.stringify(merged, null, 2));
+      try {
+        await ghPutFile(gardenStatePath(), b64, `Issue redeem token (${AUTH_USER}): ${prizeId}`);
+      } catch (e) {
+        centerMsg(
+          `<div style="font-weight:950">生成失败</div>
+           <div class="sub" style="margin-top:8px">同步到云端时出错了：${String(e && e.message || e || '')}</div>`,
+          { buttonText: '我知道了' }
+        );
+        return;
+      }
+
+      const redeemUrl = `${location.origin}${basePath()}/simple/redeem.html?u=${encodeURIComponent(AUTH_USER)}&t=${encodeURIComponent(token)}`;
+      const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(redeemUrl)}`;
+
+      const html = `
+        <div style="font-weight:950; font-size:16px;">核销码已生成</div>
+        <div class="sub" style="margin-top:8px">券：<b>${title}</b>（剩余可用：${available}）</div>
+        <div class="sub" style="margin-top:8px">让对方打开相机/扫码工具扫下面二维码，然后点「确认核销」并输入 4 位暗号～</div>
+        <div style="margin-top:12px; display:flex; justify-content:center;">
+          <img alt="qr" src="${qrImg}" style="width:260px; height:260px; border-radius:16px; border:1px solid rgba(0,0,0,0.08); background:#fff" />
+        </div>
+        <div style="margin-top:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <button class="miniBtn" id="copyRedeemLink">复制链接</button>
+          <a class="miniBtn" href="${redeemUrl}" target="_blank" rel="noreferrer" style="text-decoration:none; display:inline-flex; align-items:center;">直接打开</a>
+        </div>
+        <div class="sub" style="margin-top:10px; word-break:break-all">${redeemUrl}</div>
+      `;
+
+      centerMsg(html, { buttonText: '完成' });
+
+      setTimeout(() => {
+        const c = document.getElementById('copyRedeemLink');
+        if (c) {
+          c.onclick = async (e) => {
+            e.preventDefault();
+            try {
+              await navigator.clipboard.writeText(redeemUrl);
+              toast('已复制～');
+            } catch {
+              toast('复制失败，长按链接手动复制也可以');
+            }
+          };
+        }
+      }, 0);
+    }
 
     const maybeUnlock = () => {};
 
