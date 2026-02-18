@@ -642,6 +642,84 @@
 
     const gardenStatePath = () => `garden/${AUTH_USER}/state.json`;
 
+    // Redeem records are stored as separate files to avoid state.json write conflicts.
+    // issued: garden/<user>/redeem/issued/<prizeId>__<token>.json
+    // used:   garden/<user>/redeem/used/<prizeId>__<token>.json
+    const redeemIssuedDir = () => `garden/${AUTH_USER}/redeem/issued`;
+    const redeemUsedDir = () => `garden/${AUTH_USER}/redeem/used`;
+
+    function parseRedeemFilename(name){
+      // <prizeId>__<token>.json
+      const m = /^(.+?)__([A-Za-z0-9_-]+)\.json$/.exec(String(name||''));
+      if (!m) return null;
+      return { prizeId: m[1], token: m[2] };
+    }
+
+    async function ghListDir(repoPath){
+      const enc = repoPath.split('/').map(encodeURIComponent).join('/');
+      try {
+        const j = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=${encodeURIComponent(GH_BRANCH)}`);
+        return Array.isArray(j) ? j : [];
+      } catch (e) {
+        // 404 means dir doesn't exist yet
+        const em = String(e && e.message || e || '');
+        if (em.startsWith('404 ')) return [];
+        throw e;
+      }
+    }
+
+    async function getRedeemCounts(prizeId){
+      const issuedFiles = await ghListDir(redeemIssuedDir());
+      const usedFiles = await ghListDir(redeemUsedDir());
+
+      const usedTokens = new Set();
+      for (const f of usedFiles) {
+        const p = parseRedeemFilename(f && f.name);
+        if (!p) continue;
+        if (p.prizeId !== prizeId) continue;
+        usedTokens.add(p.token);
+      }
+
+      let pending = 0;
+      let used = 0;
+      for (const f of issuedFiles) {
+        const p = parseRedeemFilename(f && f.name);
+        if (!p) continue;
+        if (p.prizeId !== prizeId) continue;
+        if (usedTokens.has(p.token)) used += 1;
+        else pending += 1;
+      }
+
+      return { pending, used };
+    }
+
+    async function refreshRedeemMaps(){
+      try {
+        const issuedFiles = await ghListDir(redeemIssuedDir());
+        const usedFiles = await ghListDir(redeemUsedDir());
+
+        const issuedMap = {};
+        const usedMap = {};
+
+        for (const f of issuedFiles) {
+          const p = parseRedeemFilename(f && f.name);
+          if (!p) continue;
+          issuedMap[p.token] = { prizeId: p.prizeId, token: p.token, name: f.name, path: f.path, kind: 'issued' };
+        }
+        for (const f of usedFiles) {
+          const p = parseRedeemFilename(f && f.name);
+          if (!p) continue;
+          usedMap[p.token] = { prizeId: p.prizeId, token: p.token, name: f.name, path: f.path, kind: 'used' };
+        }
+
+        state.redeemIssued = issuedMap;
+        state.redeemUsed = usedMap;
+        save();
+      } catch (e) {
+        console.warn('refreshRedeemMaps failed', e);
+      }
+    }
+
     function mergeGardenState(local, remote){
       const lts = Number(local?.updatedAt || 0) || 0;
       const rts = Number(remote?.updatedAt || 0) || 0;
@@ -985,23 +1063,18 @@
         return;
       }
 
-      // Load remote state and check availability (owned - used - pending)
-      let remote;
+      // Check availability from remote redeem records (avoids state.json write conflicts)
+      let usedCount = 0;
+      let pendingCount = 0;
       try {
-        remote = await loadRemoteGardenState();
+        const c = await getRedeemCounts(prizeId);
+        usedCount = c.used;
+        pendingCount = c.pending;
       } catch (e) {
-        console.warn('load remote failed', e);
-        remote = null;
+        console.warn('getRedeemCounts failed', e);
       }
-      remote = remote && typeof remote === 'object' ? remote : {};
 
-      const issued = (remote.redeemIssued && typeof remote.redeemIssued==='object') ? remote.redeemIssued : {};
-      const used = (remote.redeemUsed && typeof remote.redeemUsed==='object') ? remote.redeemUsed : {};
-
-      const usedCount = Object.values(used).filter(v => v && v.prizeId === prizeId).length;
-      const pendingCount = Object.entries(issued).filter(([t, v]) => v && v.prizeId === prizeId && !used[t]).length;
       const available = owned - usedCount - pendingCount;
-
       if (available <= 0) {
         centerMsg(
           `<div style="font-weight:950">这张券暂时没有可核销的余额了</div>
@@ -1016,60 +1089,30 @@
       crypto.getRandomValues(bytes);
       const token = btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 
-      // Write issued record to remote (retry once on SHA conflict 409)
-      let remoteNow = remote;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const issuedNow = (remoteNow.redeemIssued && typeof remoteNow.redeemIssued==='object') ? remoteNow.redeemIssued : {};
-        const usedNow = (remoteNow.redeemUsed && typeof remoteNow.redeemUsed==='object') ? remoteNow.redeemUsed : {};
+      // Write issued record as a separate file
+      const issuedName = `${prizeId}__${token}.json`;
+      const issuedPath = `${redeemIssuedDir()}/${issuedName}`;
+      const payload = { prizeId, token, user: AUTH_USER, issuedAt: Date.now(), issuedBy: 'holder', v: 1 };
+      const b64 = await base64Utf8(JSON.stringify(payload, null, 2));
 
-        // Re-check availability in case something changed
-        const usedCountNow = Object.values(usedNow).filter(v => v && v.prizeId === prizeId).length;
-        const pendingCountNow = Object.entries(issuedNow).filter(([t, v]) => v && v.prizeId === prizeId && !usedNow[t]).length;
-        const availableNow = owned - usedCountNow - pendingCountNow;
-        if (availableNow <= 0) {
-          centerMsg(
-            `<div style="font-weight:950">这张券暂时没有可核销的余额了</div>
-             <div class="sub" style="margin-top:8px">可能你已经生成过核销码，正在等对方扫码～</div>`,
-            { buttonText: '知道了' }
-          );
-          return;
-        }
-
-        const local = {
-          ...remoteNow,
-          redeemIssued: { ...(issuedNow || {}), [token]: { prizeId, issuedAt: Date.now(), user: AUTH_USER, issuedBy: 'holder' } },
-          updatedAt: Date.now(),
-        };
-
-        const merged = mergeGardenState(local, remoteNow);
-        const b64 = await base64Utf8(JSON.stringify(merged, null, 2));
-
-        try {
-          await ghPutFile(gardenStatePath(), b64, `Issue redeem token (${AUTH_USER}): ${prizeId}`);
-          break; // success
-        } catch (e) {
-          const em = String(e && e.message || e || '');
-          const is409 = em.startsWith('409 ');
-          if (is409 && attempt === 0) {
-            // refetch and retry
-            remoteNow = (await loadRemoteGardenState()) || {};
-            continue;
-          }
-          centerMsg(
-            `<div style="font-weight:950">生成失败</div>
-             <div class="sub" style="margin-top:8px">同步到云端时出错了：${em}</div>`,
-            { buttonText: '我知道了' }
-          );
-          return;
-        }
+      try {
+        await ghPutFile(issuedPath, b64, `Issue redeem token (${AUTH_USER}): ${prizeId}`);
+      } catch (e) {
+        const em = String(e && e.message || e || '');
+        centerMsg(
+          `<div style="font-weight:950">生成失败</div>
+           <div class="sub" style="margin-top:8px">同步到云端时出错了：${em}</div>`,
+          { buttonText: '我知道了' }
+        );
+        return;
       }
 
-      // Verify the issued record exists (best-effort). If not visible, still show QR with a warning.
+      // Poll visibility briefly; if still not visible, show QR anyway (might be API propagation delay)
       let visible = false;
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 6; i++) {
         try {
-          const check = await loadRemoteGardenState();
-          if (check && check.redeemIssued && check.redeemIssued[token]) { visible = true; break; }
+          const list = await ghListDir(redeemIssuedDir());
+          if (list.some(x => x && x.name === issuedName)) { visible = true; break; }
         } catch {}
         await sleep(250 + i * 250);
       }
@@ -1491,13 +1534,10 @@
           // apply merged into local state
           state.score = Number(merged.score || 0) || 0;
           state.bag = merged.bag || {};
-          state.redeemIssued = (merged.redeemIssued && typeof merged.redeemIssued === 'object') ? merged.redeemIssued : {};
-          state.redeemUsed = (merged.redeemUsed && typeof merged.redeemUsed === 'object') ? merged.redeemUsed : {};
+          // redeem maps are refreshed separately from /redeem/* files to avoid state.json conflicts.
           try { localStorage.setItem(ns('updatedAt'), String(merged.updatedAt || Date.now())); } catch {}
           try { localStorage.setItem(ns('theo_score'), String(state.score)); } catch {}
           try { localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag)); } catch {}
-          try { localStorage.setItem(ns('redeemIssued'), JSON.stringify(state.redeemIssued || {})); } catch {}
-          try { localStorage.setItem(ns('redeemUsed'), JSON.stringify(state.redeemUsed || {})); } catch {}
           if (merged.dailyBonusDay) {
             try { localStorage.setItem(ns('theo_daily_bonus_day'), merged.dailyBonusDay); } catch {}
           }
@@ -1512,6 +1552,7 @@
       (async () => {
         try {
           await pullAndMergeRemote();
+          await refreshRedeemMaps();
           // also push current (merged) to remote in background
           scheduleSync(getLocalGardenState);
         } catch (e) {
@@ -1523,12 +1564,13 @@
       setInterval(() => {
         if (document.visibilityState !== 'visible') return;
         pullAndMergeRemote().catch(() => {});
+        refreshRedeemMaps().catch(() => {});
       }, 20000);
 
       // Pull when coming back to the tab.
-      window.addEventListener('focus', () => pullAndMergeRemote().catch(() => {}));
+      window.addEventListener('focus', () => { pullAndMergeRemote().catch(() => {}); refreshRedeemMaps().catch(() => {}); });
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') pullAndMergeRemote().catch(() => {});
+        if (document.visibilityState === 'visible') { pullAndMergeRemote().catch(() => {}); refreshRedeemMaps().catch(() => {}); }
       });
 
       // init check-in calendar

@@ -200,6 +200,52 @@
 
   const gardenStatePath = () => `garden/${AUTH_USER}/state.json`;
 
+  const redeemIssuedDir = () => `garden/${AUTH_USER}/redeem/issued`;
+  const redeemUsedDir = () => `garden/${AUTH_USER}/redeem/used`;
+
+  function parseRedeemFilename(name){
+    const m = /^(.+?)__([A-Za-z0-9_-]+)\.json$/.exec(String(name||''));
+    if (!m) return null;
+    return { prizeId: m[1], token: m[2] };
+  }
+
+  async function ghListDir(repoPath){
+    const enc = repoPath.split('/').map(encodeURIComponent).join('/');
+    try {
+      const j = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=${encodeURIComponent(GH_BRANCH)}`);
+      return Array.isArray(j) ? j : [];
+    } catch (e) {
+      const em = String(e && e.message || e || '');
+      if (em.startsWith('404 ')) return [];
+      throw e;
+    }
+  }
+
+  async function getRedeemCounts(prizeId){
+    const issuedFiles = await ghListDir(redeemIssuedDir());
+    const usedFiles = await ghListDir(redeemUsedDir());
+
+    const usedTokens = new Set();
+    for (const f of usedFiles) {
+      const p = parseRedeemFilename(f && f.name);
+      if (!p) continue;
+      if (p.prizeId !== prizeId) continue;
+      usedTokens.add(p.token);
+    }
+
+    let pending = 0;
+    let used = 0;
+    for (const f of issuedFiles) {
+      const p = parseRedeemFilename(f && f.name);
+      if (!p) continue;
+      if (p.prizeId !== prizeId) continue;
+      if (usedTokens.has(p.token)) used += 1;
+      else pending += 1;
+    }
+
+    return { pending, used };
+  }
+
   function mergeGardenState(local, remote){
     const lts = Number(local?.updatedAt || 0) || 0;
     const rts = Number(remote?.updatedAt || 0) || 0;
@@ -265,80 +311,59 @@
 
       await ensureGhToken();
 
-      const remote = await ghTryGetJson(gardenStatePath());
-      if (!remote) throw new Error('NO_REMOTE_STATE');
+      // --- New redeem storage (separate files) ---
+      const issuedFiles = await ghListDir(redeemIssuedDir());
+      const issuedFile = issuedFiles.find(f => {
+        const p = parseRedeemFilename(f && f.name);
+        return p && p.token === TOKEN;
+      });
 
-      const issued = (remote.redeemIssued && typeof remote.redeemIssued==='object') ? remote.redeemIssued : {};
-      const used = (remote.redeemUsed && typeof remote.redeemUsed==='object') ? remote.redeemUsed : {};
-
-      if (!issued[TOKEN]) {
+      if (!issuedFile) {
         showMsg('这个核销码无效或已过期（找不到签发记录）。\n请让对方重新生成一次～');
         return;
       }
 
-      const prizeId = issued[TOKEN].prizeId;
-      if (used[TOKEN]) {
-        showMsg(`这个核销码已经核销过啦～\n核销时间：${prettyTime(used[TOKEN].usedAt)}`);
+      const parsed = parseRedeemFilename(issuedFile.name);
+      const prizeId = parsed && parsed.prizeId;
+      if (!prizeId) {
+        showMsg('核销码格式不对（无法解析券类型）。\n请让对方重新生成一次～');
         return;
       }
 
-      // balance check: owned - usedCount - pendingIssuedNotUsed
+      const usedFiles = await ghListDir(redeemUsedDir());
+      const alreadyUsed = usedFiles.some(f => {
+        const p = parseRedeemFilename(f && f.name);
+        return p && p.token === TOKEN;
+      });
+      if (alreadyUsed) {
+        showMsg('这个核销码已经核销过啦～');
+        return;
+      }
+
+      // balance check: owned - usedCount - pending
+      const remote = await ghTryGetJson(gardenStatePath());
+      if (!remote) throw new Error('NO_REMOTE_STATE');
       const bag = remote.bag || {};
       const owned = Number(bag[prizeId] || 0) || 0;
-      let usedCount = 0;
-      for (const t of Object.keys(used)) if (used[t] && used[t].prizeId === prizeId) usedCount += 1;
-      let pending = 0;
-      for (const t of Object.keys(issued)) {
-        if (!issued[t] || issued[t].prizeId !== prizeId) continue;
-        if (used[t]) continue;
-        pending += 1;
-      }
-      // this token is part of pending; after redeem it moves to used. So require owned - usedCount - pending >= 0 (always true), but also owned - usedCount - (pending-1) > 0
-      const availableAfter = owned - usedCount - (pending - 1);
+      const c = await getRedeemCounts(prizeId);
+      const availableAfter = owned - c.used - (c.pending - 1);
       if (availableAfter <= 0) {
         showMsg('这张券的余额不够了（可能已经被其他核销码占用了）。\n让对方检查一下小口袋～');
         return;
       }
 
-      // write used
-      const local = {
-        ...remote,
-        redeemUsed: { ...(remote.redeemUsed||{}), [TOKEN]: { prizeId, usedAt: Date.now(), user: AUTH_USER, usedBy: 'scan' } },
-        updatedAt: Date.now(),
-      };
-      // write used (retry once on SHA conflict 409)
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const remoteNow = attempt === 0 ? remote : (await ghTryGetJson(gardenStatePath())) || remote;
-
-        const issuedNow = (remoteNow.redeemIssued && typeof remoteNow.redeemIssued==='object') ? remoteNow.redeemIssued : {};
-        const usedNow = (remoteNow.redeemUsed && typeof remoteNow.redeemUsed==='object') ? remoteNow.redeemUsed : {};
-
-        if (!issuedNow[TOKEN]) { showMsg('这个核销码无效或已过期（找不到签发记录）。\n请让对方重新生成一次～'); return; }
-        if (usedNow[TOKEN]) { showMsg(`这个核销码已经核销过啦～\n核销时间：${prettyTime(usedNow[TOKEN].usedAt)}`); return; }
-
-        const localNow = {
-          ...remoteNow,
-          redeemUsed: { ...(remoteNow.redeemUsed||{}), [TOKEN]: { prizeId, usedAt: Date.now(), user: AUTH_USER, usedBy: 'scan' } },
-          updatedAt: Date.now(),
-        };
-        const merged = mergeGardenState(localNow, remoteNow);
-        const b64 = await base64Utf8(JSON.stringify(merged, null, 2));
-
-        try {
-          await ghPutFile(gardenStatePath(), b64, `Redeem coupon (${AUTH_USER}): ${prizeId}`);
-          break;
-        } catch (e) {
-          const em = String(e && e.message || e || '');
-          if (em.startsWith('409 ') && attempt === 0) continue;
-          throw e;
-        }
-      }
+      // write used as a separate file (idempotent by token)
+      const usedName = issuedFile.name;
+      const usedPath = `${redeemUsedDir()}/${usedName}`;
+      const payload = { prizeId, token: TOKEN, user: AUTH_USER, usedAt: Date.now(), usedBy: 'scan', v: 1 };
+      const b64 = await base64Utf8(JSON.stringify(payload, null, 2));
+      await ghPutFile(usedPath, b64, `Redeem coupon (${AUTH_USER}): ${prizeId}`);
 
       // verify persisted
       let verified = false;
       try {
-        const after = await ghTryGetJson(gardenStatePath());
-        verified = !!(after && after.redeemUsed && after.redeemUsed[TOKEN]);
+        const afterUsed = await ghListDir(redeemUsedDir());
+        verified = afterUsed.some(f => f && f.name === usedName);
       } catch {}
 
       $('pill').style.display = 'inline-flex';
