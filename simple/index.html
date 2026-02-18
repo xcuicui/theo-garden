@@ -935,15 +935,39 @@
           btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            issueRedeemFlow(p.id);
+            issueRedeemFlow(p.id, btn);
           });
         }
       }
     };
 
-    async function issueRedeemFlow(prizeId){
+    async function issueRedeemFlow(prizeId, triggerBtn){
       // avoid racing with background sync writes
       pauseSync(30000);
+
+      // UX: show loading / disable button while we talk to GitHub
+      const setBtnLoading = (on) => {
+        if (!triggerBtn) return;
+        if (!triggerBtn.dataset) return;
+        if (on) {
+          triggerBtn.dataset._oldText = triggerBtn.textContent || '';
+          triggerBtn.disabled = true;
+          triggerBtn.style.opacity = '0.55';
+          triggerBtn.style.cursor = 'not-allowed';
+          triggerBtn.textContent = '生成中…';
+        } else {
+          triggerBtn.disabled = false;
+          triggerBtn.style.opacity = '';
+          triggerBtn.style.cursor = '';
+          triggerBtn.textContent = triggerBtn.dataset._oldText || '生成核销码';
+          delete triggerBtn.dataset._oldText;
+        }
+      };
+
+      setBtnLoading(true);
+      toast('正在生成核销码…');
+
+      try {
       const prize = PRIZES.find(x => x.id === prizeId);
       const title = prize ? prize.title : prizeId;
 
@@ -1088,6 +1112,9 @@
           };
         }
       }, 0);
+      } finally {
+        setBtnLoading(false);
+      }
     }
 
     const maybeUnlock = () => {};
