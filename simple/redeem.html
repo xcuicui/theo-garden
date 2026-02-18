@@ -168,7 +168,7 @@
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  async function ghPutFile(repoPath, contentBase64, message, { retries = 4 } = {}){
+  async function ghPutFile(repoPath, contentBase64, message, { retries = 16 } = {}){
     const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(repoPath).replaceAll('%2F','/')}`;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
@@ -188,7 +188,9 @@
         const em = String(e && e.message || e || '');
         const is409 = em.startsWith('409 ');
         if (is409 && attempt < retries) {
-          await sleep(120 * (attempt + 1));
+          const base = Math.min(2000, 120 * Math.pow(1.6, attempt));
+          const jitter = Math.random() * 180;
+          await sleep(base + jitter);
           continue;
         }
         throw e;
