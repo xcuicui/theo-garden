@@ -166,19 +166,34 @@
     }
   }
 
-  async function ghPutFile(repoPath, contentBase64, message){
-    const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(repoPath).replaceAll('%2F','/')}`;
-    let sha;
-    try {
-      const cur = await ghFetch(`${url}?ref=${encodeURIComponent(GH_BRANCH)}`);
-      sha = cur && cur.sha;
-    } catch {}
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    return ghFetch(url, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message, content: contentBase64, branch: GH_BRANCH, sha }),
-    });
+  async function ghPutFile(repoPath, contentBase64, message, { retries = 4 } = {}){
+    const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(repoPath).replaceAll('%2F','/')}`;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      let sha;
+      try {
+        const cur = await ghFetch(`${url}?ref=${encodeURIComponent(GH_BRANCH)}`);
+        sha = cur && cur.sha;
+      } catch {}
+
+      try {
+        return await ghFetch(url, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ message, content: contentBase64, branch: GH_BRANCH, sha }),
+        });
+      } catch (e) {
+        const em = String(e && e.message || e || '');
+        const is409 = em.startsWith('409 ');
+        if (is409 && attempt < retries) {
+          await sleep(120 * (attempt + 1));
+          continue;
+        }
+        throw e;
+      }
+    }
   }
 
   const gardenStatePath = () => `garden/${AUTH_USER}/state.json`;
