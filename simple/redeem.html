@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>券券核销</title>
+  <style>
+    :root{ --bg:#0b1020; --card:#111a33; --txt:#e9eeff; --muted:rgba(233,238,255,.75); --btn:#1f66e3; }
+    body{ margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: radial-gradient(1000px 800px at 30% 0%, rgba(31,102,227,.25), transparent 60%), var(--bg); color:var(--txt); }
+    .wrap{ min-height:100vh; display:grid; place-items:center; padding:18px; }
+    .card{ width:min(520px, 92vw); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03)); border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:18px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    .title{ font-weight:800; letter-spacing:.3px; font-size:20px; }
+    .sub{ margin-top:8px; color:var(--muted); line-height:1.6; }
+    .pill{ display:inline-flex; gap:8px; align-items:center; padding:8px 10px; border-radius:999px; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); margin-top:12px; font-size:13px; color:var(--muted); }
+    .btnrow{ margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
+    button{ border:0; border-radius:12px; padding:12px 14px; font-weight:700; cursor:pointer; }
+    .primary{ background: var(--btn); color:#fff; }
+    .ghost{ background: rgba(255,255,255,.08); color:var(--txt); border:1px solid rgba(255,255,255,.12); }
+    .msg{ margin-top:14px; padding:12px; border-radius:12px; background: rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.10); color:var(--muted); white-space:pre-wrap; }
+    .input{ width:100%; box-sizing:border-box; margin-top:10px; padding:12px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.25); color:var(--txt); outline:none; font-size:16px; letter-spacing:2px; }
+    .fine{ margin-top:10px; font-size:12px; color:rgba(233,238,255,.65); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title" id="title">券券核销</div>
+      <div class="sub" id="sub">点一下【确认核销】后，还需要输入 4 位暗号才会真正核销并扣券～</div>
+      <div class="pill" id="pill" style="display:none"></div>
+
+      <div class="btnrow" id="btnrow">
+        <button class="primary" id="btn">确认核销</button>
+        <button class="ghost" id="btnShow">只是看看</button>
+      </div>
+
+      <div id="passWrap" style="display:none">
+        <input class="input" id="pass" inputmode="numeric" maxlength="8" placeholder="输入 4 位暗号" />
+        <div class="btnrow">
+          <button class="primary" id="btnDo">提交核销</button>
+          <button class="ghost" id="btnCancel">取消</button>
+        </div>
+        <div class="fine">提示：暗号会保存在你这台设备的浏览器 localStorage（只用于解密写入权限）。</div>
+      </div>
+
+      <div class="msg" id="msg" style="display:none"></div>
+    </div>
+  </div>
+
+<script>
+  // ---- Params ----
+  const qs = new URLSearchParams(location.search);
+  const AUTH_USER = String(qs.get('u') || '').trim();
+  const TOKEN = String(qs.get('t') || '').trim();
+
+  const $ = (id) => document.getElementById(id);
+  const showMsg = (t) => { const m=$('msg'); m.style.display='block'; m.textContent=String(t||''); };
+
+  if (!AUTH_USER || !TOKEN) {
+    $('sub').textContent = '链接不完整：缺少 u 或 t 参数。请重新生成核销码。';
+    $('btnrow').style.display='none';
+  }
+
+  // ---- GitHub Vault Sync (same as index) ----
+  let GH_TOKEN = '';
+  const GH_OWNER = 'xcuicui';
+  const GH_REPO = 'theo-notes';
+  const GH_BRANCH = 'main';
+
+  function getSitePass(){
+    try { return localStorage.getItem('theo_site_pass') || ''; } catch { return ''; }
+  }
+
+  async function b64ToBytes(b64){
+    const bin = atob(String(b64).replace(/\n/g,''));
+    const out = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+    return out;
+  }
+
+  async function decryptGhToken(pass){
+    const enc = await fetch('../notes/gh-token.enc.json', { cache: 'no-store' }).then(r=>r.json());
+    const salt = await b64ToBytes(enc.salt);
+    const iv = await b64ToBytes(enc.iv);
+    const ct = await b64ToBytes(enc.ct);
+    const tag = await b64ToBytes(enc.tag);
+    const data = new Uint8Array(ct.length + tag.length);
+    data.set(ct, 0);
+    data.set(tag, ct.length);
+
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(pass),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+
+    const aesKey = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: enc.iter || 150000, hash: 'SHA-256' },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, data);
+    return new TextDecoder('utf-8').decode(new Uint8Array(pt));
+  }
+
+  async function ensureGhToken(){
+    if (GH_TOKEN) return GH_TOKEN;
+    const pass = getSitePass();
+    if (!pass) throw new Error('NO_PASS');
+    const tok = await decryptGhToken(pass);
+    if (!tok || tok.length < 10) throw new Error('BAD_TOKEN');
+    GH_TOKEN = tok;
+    return GH_TOKEN;
+  }
+
+  async function ghFetch(path, opts = {}){
+    await ensureGhToken();
+    const url = `https://api.github.com${path}`;
+    const res = await fetch(url, {
+      ...opts,
+      headers: {
+        'authorization': `Bearer ${GH_TOKEN}`,
+        'accept': 'application/vnd.github+json',
+        'x-github-api-version': '2022-11-28',
+        ...(opts.headers || {}),
+      }
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`${res.status} ${t.slice(0, 200)}`);
+    }
+    return res.json();
+  }
+
+  async function ghGetFile(repoPath){
+    const enc = repoPath.split('/').map(encodeURIComponent).join('/');
+    const j = await ghFetch(`/repos/${GH_OWNER}/${GH_REPO}/contents/${enc}?ref=${encodeURIComponent(GH_BRANCH)}`);
+    if (!j || j.type !== 'file') throw new Error('not_file');
+    return { content: j.content, encoding: j.encoding, sha: j.sha };
+  }
+
+  function b64ToUtf8(b64){
+    const bin = atob(String(b64).replace(/\n/g,''));
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  async function base64Utf8(str){
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    bytes.forEach(b => bin += String.fromCharCode(b));
+    return btoa(bin);
+  }
+
+  async function ghTryGetJson(repoPath){
+    try {
+      const f = await ghGetFile(repoPath);
+      const txt = f.encoding === 'base64' ? b64ToUtf8(f.content) : '';
+      return JSON.parse(txt);
+    } catch {
+      return null;
+    }
+  }
+
+  async function ghPutFile(repoPath, contentBase64, message){
+    const url = `/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(repoPath).replaceAll('%2F','/')}`;
+    let sha;
+    try {
+      const cur = await ghFetch(`${url}?ref=${encodeURIComponent(GH_BRANCH)}`);
+      sha = cur && cur.sha;
+    } catch {}
+
+    return ghFetch(url, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message, content: contentBase64, branch: GH_BRANCH, sha }),
+    });
+  }
+
+  const gardenStatePath = () => `garden/${AUTH_USER}/state.json`;
+
+  function mergeGardenState(local, remote){
+    const lts = Number(local?.updatedAt || 0) || 0;
+    const rts = Number(remote?.updatedAt || 0) || 0;
+    const primary = (lts >= rts) ? (local || {}) : (remote || {});
+    const secondary = (primary === local) ? (remote || {}) : (local || {});
+
+    const out = { ...secondary, ...primary };
+
+    // monotonic fields
+    out.score = Math.max(Number(local?.score||0)||0, Number(remote?.score||0)||0);
+    const s = new Set([...(remote?.checkins||[]), ...(local?.checkins||[])]);
+    out.checkins = Array.from(s).sort();
+    const a = String(remote?.dailyBonusDay||'');
+    const b = String(local?.dailyBonusDay||'');
+    out.dailyBonusDay = (a > b) ? a : b;
+
+    const bag = {};
+    const lb = (local && typeof local==='object' && local.bag && typeof local.bag==='object') ? local.bag : {};
+    const rb = (remote && typeof remote==='object' && remote.bag && typeof remote.bag==='object') ? remote.bag : {};
+    for (const k of new Set([...Object.keys(lb), ...Object.keys(rb)])) {
+      const lv = Number(lb[k] || 0) || 0;
+      const rv = Number(rb[k] || 0) || 0;
+      bag[k] = Math.max(lv, rv);
+    }
+    out.bag = bag;
+
+    function mergeTokenMap(a, b){
+      const oa = (a && typeof a === 'object') ? a : {};
+      const ob = (b && typeof b === 'object') ? b : {};
+      const out = {};
+      for (const k of new Set([...Object.keys(oa), ...Object.keys(ob)])) {
+        const va = oa[k];
+        const vb = ob[k];
+        const ta = Number(va?.usedAt || va?.issuedAt || 0) || 0;
+        const tb = Number(vb?.usedAt || vb?.issuedAt || 0) || 0;
+        const primary = (ta >= tb) ? (va || {}) : (vb || {});
+        const secondary = (primary === va) ? (vb || {}) : (va || {});
+        out[k] = { ...secondary, ...primary };
+      }
+      return out;
+    }
+
+    out.redeemIssued = mergeTokenMap(local?.redeemIssued, remote?.redeemIssued);
+    out.redeemUsed = mergeTokenMap(local?.redeemUsed, remote?.redeemUsed);
+
+    out.user = AUTH_USER;
+    out.version = 1;
+    out.updatedAt = Math.max(Date.now(), lts, rts);
+    return out;
+  }
+
+  // ---- Redeem ----
+  function prettyTime(ts){
+    try { return new Date(Number(ts||0)).toLocaleString('zh-CN'); } catch { return ''; }
+  }
+
+  async function doRedeem(){
+    try {
+      $('btnDo').disabled = true;
+      const pass = String($('pass').value || '').trim();
+      if (!pass) { showMsg('请输入 4 位暗号～'); $('btnDo').disabled = false; return; }
+      try { localStorage.setItem('theo_site_pass', pass); } catch {}
+
+      await ensureGhToken();
+
+      const remote = await ghTryGetJson(gardenStatePath());
+      if (!remote) throw new Error('NO_REMOTE_STATE');
+
+      const issued = (remote.redeemIssued && typeof remote.redeemIssued==='object') ? remote.redeemIssued : {};
+      const used = (remote.redeemUsed && typeof remote.redeemUsed==='object') ? remote.redeemUsed : {};
+
+      if (!issued[TOKEN]) {
+        showMsg('这个核销码无效或已过期（找不到签发记录）。\n请让对方重新生成一次～');
+        return;
+      }
+
+      const prizeId = issued[TOKEN].prizeId;
+      if (used[TOKEN]) {
+        showMsg(`这个核销码已经核销过啦～\n核销时间：${prettyTime(used[TOKEN].usedAt)}`);
+        return;
+      }
+
+      // balance check: owned - usedCount - pendingIssuedNotUsed
+      const bag = remote.bag || {};
+      const owned = Number(bag[prizeId] || 0) || 0;
+      let usedCount = 0;
+      for (const t of Object.keys(used)) if (used[t] && used[t].prizeId === prizeId) usedCount += 1;
+      let pending = 0;
+      for (const t of Object.keys(issued)) {
+        if (!issued[t] || issued[t].prizeId !== prizeId) continue;
+        if (used[t]) continue;
+        pending += 1;
+      }
+      // this token is part of pending; after redeem it moves to used. So require owned - usedCount - pending >= 0 (always true), but also owned - usedCount - (pending-1) > 0
+      const availableAfter = owned - usedCount - (pending - 1);
+      if (availableAfter <= 0) {
+        showMsg('这张券的余额不够了（可能已经被其他核销码占用了）。\n让对方检查一下小口袋～');
+        return;
+      }
+
+      // write used
+      const local = {
+        ...remote,
+        redeemUsed: { ...(remote.redeemUsed||{}), [TOKEN]: { prizeId, usedAt: Date.now(), user: AUTH_USER, usedBy: 'scan' } },
+        updatedAt: Date.now(),
+      };
+      const merged = mergeGardenState(local, remote);
+      const b64 = await base64Utf8(JSON.stringify(merged, null, 2));
+      await ghPutFile(gardenStatePath(), b64, `Redeem coupon (${AUTH_USER}): ${prizeId}`);
+
+      $('pill').style.display = 'inline-flex';
+      $('pill').textContent = `已核销：${prizeId}`;
+      showMsg('核销成功啦～\n\n你可以截图留念：\n“这张券被温柔地兑现了。”');
+      $('passWrap').style.display = 'none';
+      $('btnrow').style.display = 'none';
+    } catch (e) {
+      const msg = String(e && e.message || e || '');
+      if (msg.includes('NO_PASS')) showMsg('需要输入 4 位暗号才能核销～');
+      else showMsg('核销失败：' + msg);
+    } finally {
+      $('btnDo').disabled = false;
+    }
+  }
+
+  $('btn').onclick = () => { $('passWrap').style.display = 'block'; $('btnrow').style.display = 'none'; };
+  $('btnShow').onclick = () => {
+    showMsg('这是一个核销码页面。\n\n如果你只是想看看：可以截图；\n如果要完成核销：点「确认核销」，输入 4 位暗号～');
+  };
+  $('btnCancel').onclick = () => { $('passWrap').style.display = 'none'; $('btnrow').style.display = 'flex'; };
+  $('btnDo').onclick = (e) => { e.preventDefault(); doRedeem(); };
+
+  // Autofill pass if exists
+  const p = getSitePass();
+  if (p) $('pass').value = p;
+</script>
+</body>
+</html>
