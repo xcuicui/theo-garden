@@ -334,9 +334,22 @@
         }
       }
 
+      // verify persisted
+      let verified = false;
+      try {
+        const after = await ghTryGetJson(gardenStatePath());
+        verified = !!(after && after.redeemUsed && after.redeemUsed[TOKEN]);
+      } catch {}
+
       $('pill').style.display = 'inline-flex';
       $('pill').textContent = `已核销：${prizeId}`;
-      showMsg('核销成功啦～\n\n你可以截图留念：\n“这张券被温柔地兑现了。”');
+
+      if (verified) {
+        showMsg('核销成功啦～\n\n你可以截图留念：\n“这张券被温柔地兑现了。”');
+      } else {
+        showMsg('看起来核销已提交，但云端还没确认到记录（可能是网络/并发同步导致延迟）。\n\n请稍等几秒刷新；如果仍然显示无效/没扣券，让对方重新生成一次核销码再扫～');
+      }
+
       $('passWrap').style.display = 'none';
       $('btnrow').style.display = 'none';
     } catch (e) {
