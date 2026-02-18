@@ -712,6 +712,23 @@
       await ghPutFile(gardenStatePath(), b64, `Update garden state (${AUTH_USER})`);
     }
 
+    async function pullFromRemoteAndSaveLocal(){
+      try {
+        const remote = await loadRemoteGardenState();
+        if (!remote) return;
+        // Merge remote into local (monotonic), then persist locally for UI.
+        const local = getLocalGardenState();
+        const merged = mergeGardenState(local, remote);
+        state.score = Number(merged.score || 0) || 0;
+        state.bag = (merged.bag && typeof merged.bag === 'object') ? merged.bag : {};
+        state.redeemIssued = (merged.redeemIssued && typeof merged.redeemIssued === 'object') ? merged.redeemIssued : {};
+        state.redeemUsed = (merged.redeemUsed && typeof merged.redeemUsed === 'object') ? merged.redeemUsed : {};
+        save();
+      } catch (e) {
+        console.warn('pull remote failed', e);
+      }
+    }
+
     let syncTimer = null;
     let syncPausedUntil = 0;
     function pauseSync(ms){
@@ -820,7 +837,9 @@
 
     const state = {
       score: 0,
-      bag: {}, // prizeId -> count
+      bag: {}, // prizeId -> earned count
+      redeemIssued: {}, // token -> { prizeId, issuedAt, ... }
+      redeemUsed: {},   // token -> { prizeId, usedAt, ... }
       dailyBonusTaken: false,
     };
 
@@ -828,6 +847,8 @@
       try {
         state.score = Number(localStorage.getItem(ns('theo_score')) || '0') || 0;
         state.bag = JSON.parse(localStorage.getItem(ns('theo_bag')) || '{}') || {};
+        state.redeemIssued = JSON.parse(localStorage.getItem(ns('redeemIssued')) || '{}') || {};
+        state.redeemUsed = JSON.parse(localStorage.getItem(ns('redeemUsed')) || '{}') || {};
         state.dailyBonusTaken = (localStorage.getItem(ns('theo_daily_bonus_day')) === todayKey());
       } catch {}
     };
@@ -840,6 +861,8 @@
         })(),
         checkins: Array.from(checkins || []),
         bag: state.bag || {},
+        redeemIssued: state.redeemIssued || {},
+        redeemUsed: state.redeemUsed || {},
         updatedAt: (() => {
           try { return Number(localStorage.getItem(ns('updatedAt')) || '0') || 0; } catch { return 0; }
         })(),
@@ -852,6 +875,8 @@
         localStorage.setItem(ns('updatedAt'), String(now));
         localStorage.setItem(ns('theo_score'), String(state.score));
         localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag));
+        localStorage.setItem(ns('redeemIssued'), JSON.stringify(state.redeemIssued || {}));
+        localStorage.setItem(ns('redeemUsed'), JSON.stringify(state.redeemUsed || {}));
       } catch {}
       // background sync
       scheduleSync(getLocalGardenState);
@@ -879,25 +904,34 @@
         return;
       }
 
+      const issuedMap = (state.redeemIssued && typeof state.redeemIssued === 'object') ? state.redeemIssued : {};
+      const usedMap = (state.redeemUsed && typeof state.redeemUsed === 'object') ? state.redeemUsed : {};
+
       for (const p of PRIZES) {
-        const cnt = Number((state.bag || {})[p.id] || 0);
-        if (!cnt) continue;
+        const earned = Number((state.bag || {})[p.id] || 0);
+        if (!earned) continue;
+
+        const usedCount = Object.values(usedMap).filter(v => v && v.prizeId === p.id).length;
+        const pendingCount = Object.entries(issuedMap).filter(([t, v]) => v && v.prizeId === p.id && !usedMap[t]).length;
+        const available = Math.max(0, earned - usedCount - pendingCount);
+
         const div = document.createElement('div');
         div.className = 'reward ok';
         div.innerHTML = `
           <div class="rewardTop">
             <div class="rewardName">${p.title}</div>
-            <div class="rewardNeed">x ${cnt}</div>
+            <div class="rewardNeed">剩余 x ${available}</div>
           </div>
           <div class="rewardDesc">${p.desc}</div>
+          <div class="rewardDesc" style="margin-top:6px; font-size:12px; color:rgba(0,0,0,0.52)">已获得 ${earned} · 已核销 ${usedCount} · 待核销 ${pendingCount}</div>
           <div class="rewardActions">
-            <button class="miniBtn primary" data-prize="${p.id}">生成核销码</button>
+            <button class="miniBtn primary" data-prize="${p.id}" ${available<=0 ? 'disabled style="opacity:.45; cursor:not-allowed"' : ''}>生成核销码</button>
           </div>
         `;
         grid.appendChild(div);
 
         const btn = div.querySelector('button[data-prize]');
-        if (btn) {
+        if (btn && available > 0) {
           btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1433,9 +1467,13 @@
           // apply merged into local state
           state.score = Number(merged.score || 0) || 0;
           state.bag = merged.bag || {};
+          state.redeemIssued = (merged.redeemIssued && typeof merged.redeemIssued === 'object') ? merged.redeemIssued : {};
+          state.redeemUsed = (merged.redeemUsed && typeof merged.redeemUsed === 'object') ? merged.redeemUsed : {};
           try { localStorage.setItem(ns('updatedAt'), String(merged.updatedAt || Date.now())); } catch {}
           try { localStorage.setItem(ns('theo_score'), String(state.score)); } catch {}
           try { localStorage.setItem(ns('theo_bag'), JSON.stringify(state.bag)); } catch {}
+          try { localStorage.setItem(ns('redeemIssued'), JSON.stringify(state.redeemIssued || {})); } catch {}
+          try { localStorage.setItem(ns('redeemUsed'), JSON.stringify(state.redeemUsed || {})); } catch {}
           if (merged.dailyBonusDay) {
             try { localStorage.setItem(ns('theo_daily_bonus_day'), merged.dailyBonusDay); } catch {}
           }
