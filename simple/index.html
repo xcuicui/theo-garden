@@ -931,24 +931,52 @@
       crypto.getRandomValues(bytes);
       const token = btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 
-      // Write issued record to remote
-      const local = {
-        ...remote,
-        redeemIssued: { ...(issued || {}), [token]: { prizeId, issuedAt: Date.now(), user: AUTH_USER, issuedBy: 'holder' } },
-        updatedAt: Date.now(),
-      };
+      // Write issued record to remote (retry once on SHA conflict 409)
+      let remoteNow = remote;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const issuedNow = (remoteNow.redeemIssued && typeof remoteNow.redeemIssued==='object') ? remoteNow.redeemIssued : {};
+        const usedNow = (remoteNow.redeemUsed && typeof remoteNow.redeemUsed==='object') ? remoteNow.redeemUsed : {};
 
-      const merged = mergeGardenState(local, remote);
-      const b64 = await base64Utf8(JSON.stringify(merged, null, 2));
-      try {
-        await ghPutFile(gardenStatePath(), b64, `Issue redeem token (${AUTH_USER}): ${prizeId}`);
-      } catch (e) {
-        centerMsg(
-          `<div style="font-weight:950">生成失败</div>
-           <div class="sub" style="margin-top:8px">同步到云端时出错了：${String(e && e.message || e || '')}</div>`,
-          { buttonText: '我知道了' }
-        );
-        return;
+        // Re-check availability in case something changed
+        const usedCountNow = Object.values(usedNow).filter(v => v && v.prizeId === prizeId).length;
+        const pendingCountNow = Object.entries(issuedNow).filter(([t, v]) => v && v.prizeId === prizeId && !usedNow[t]).length;
+        const availableNow = owned - usedCountNow - pendingCountNow;
+        if (availableNow <= 0) {
+          centerMsg(
+            `<div style="font-weight:950">这张券暂时没有可核销的余额了</div>
+             <div class="sub" style="margin-top:8px">可能你已经生成过核销码，正在等对方扫码～</div>`,
+            { buttonText: '知道了' }
+          );
+          return;
+        }
+
+        const local = {
+          ...remoteNow,
+          redeemIssued: { ...(issuedNow || {}), [token]: { prizeId, issuedAt: Date.now(), user: AUTH_USER, issuedBy: 'holder' } },
+          updatedAt: Date.now(),
+        };
+
+        const merged = mergeGardenState(local, remoteNow);
+        const b64 = await base64Utf8(JSON.stringify(merged, null, 2));
+
+        try {
+          await ghPutFile(gardenStatePath(), b64, `Issue redeem token (${AUTH_USER}): ${prizeId}`);
+          break; // success
+        } catch (e) {
+          const em = String(e && e.message || e || '');
+          const is409 = em.startsWith('409 ');
+          if (is409 && attempt === 0) {
+            // refetch and retry
+            remoteNow = (await loadRemoteGardenState()) || {};
+            continue;
+          }
+          centerMsg(
+            `<div style="font-weight:950">生成失败</div>
+             <div class="sub" style="margin-top:8px">同步到云端时出错了：${em}</div>`,
+            { buttonText: '我知道了' }
+          );
+          return;
+        }
       }
 
       const redeemUrl = `${location.origin}${basePath()}/simple/redeem.html?u=${encodeURIComponent(AUTH_USER)}&t=${encodeURIComponent(token)}`;
