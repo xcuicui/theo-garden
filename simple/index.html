@@ -1040,30 +1040,27 @@
         }
       }
 
-      // Verify the issued record exists (defensive; avoids showing a QR that can't be redeemed)
-      try {
-        const check = await loadRemoteGardenState();
-        if (!check || !check.redeemIssued || !check.redeemIssued[token]) {
-          throw new Error('ISSUE_NOT_VISIBLE');
-        }
-      } catch {
-        centerMsg(
-          `<div style="font-weight:950">生成成功但还没同步可见</div>
-           <div class="sub" style="margin-top:8px">请等 2 秒再点一次「生成核销码」（会重新生成新的码）～</div>`,
-          { buttonText: '好' }
-        );
-        return;
+      // Verify the issued record exists (best-effort). If not visible, still show QR with a warning.
+      let visible = false;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const check = await loadRemoteGardenState();
+          if (check && check.redeemIssued && check.redeemIssued[token]) { visible = true; break; }
+        } catch {}
+        await sleep(250 + i * 250);
       }
 
       const redeemUrl = `${location.origin}${basePath()}/simple/redeem.html?u=${encodeURIComponent(AUTH_USER)}&t=${encodeURIComponent(token)}`;
       const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(redeemUrl)}`;
       const tokenHint = token.slice(0, 6) + '…' + token.slice(-4);
+      const warn = visible ? '' : '<div class="sub" style="margin-top:8px; color:rgba(176,0,58,0.85)">提示：刚刚云端同步有点慢/被并发写打断了。如果对方扫码提示“无效或已过期”，请回到这里再点一次生成新的码（不要用旧截图）。</div>';
 
       const html = `
         <div style="font-weight:950; font-size:16px;">核销码已生成</div>
         <div class="sub" style="margin-top:8px">券：<b>${title}</b>（剩余可用：${available}）</div>
         <div class="sub" style="margin-top:8px">让对方扫下面二维码，然后点「确认核销」并输入 4 位暗号～</div>
         <div class="sub" style="margin-top:6px">（码标识：${tokenHint}）</div>
+        ${warn}
         <div style="margin-top:12px; display:flex; justify-content:center;">
           <img alt="qr" src="${qrImg}" style="width:260px; height:260px; border-radius:16px; border:1px solid rgba(0,0,0,0.08); background:#fff" />
         </div>
